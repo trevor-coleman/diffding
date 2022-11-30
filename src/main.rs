@@ -30,16 +30,24 @@ async fn run(line_count: i32) -> Result<(), Box<dyn Error>> {
 
     let stdout = str::from_utf8(&output.stdout)?;
     let re = Regex::new(r"((\d+)\D+)((\d+)\D+)?((\d+)?\D+)?")?;
-    let captures = re.captures(stdout).ok_or("No match")?;
+    let captures = re.captures(stdout).ok_or("No match");
 
-    let additions = captures.get(4).ok_or("0");
-    let deletions = captures.get(6).ok_or("0");
+    let total: i32;
+    match captures {
+        Ok(captures) => {
+            let additions = captures.get(4).ok_or("0");
+            let deletions = captures.get(6).ok_or("0");
 
-    //convert additions to i32
-    let additions = additions.unwrap().as_str().parse::<i32>()?;
-    let deletions = deletions.unwrap().as_str().parse::<i32>()?;
+            //convert additions to i32
+            let additions = additions.unwrap().as_str().parse::<i32>()?;
+            let deletions = deletions.unwrap().as_str().parse::<i32>()?;
 
-    let total = additions + deletions;
+            total = additions + deletions;
+        }
+        Err(_) => {
+            total = 0;
+        }
+    }
 
     println!("You've changed {:?} lines", total);
     if total > line_count {
