@@ -158,7 +158,9 @@ fn play_sound() {
 
 // a change
 async fn alert_loop(threshold: i32, last_count: &i32) -> Result<i32, Box<dyn Error>> {
-    let total = count_changes().unwrap();
+    let changes = count_changes().unwrap();
+
+    let total = changes.total;
 
     if total == 0 && last_count > &0 {
         println!(
@@ -173,8 +175,8 @@ async fn alert_loop(threshold: i32, last_count: &i32) -> Result<i32, Box<dyn Err
     let date = Local::now();
 
     print!("{} -- ", date.format("%H:%M:%S"));
-    draw_graph(total, threshold);
-    println!(" -- You've made {:?} insertions and deletions\r", total);
+    draw_graph(changes, threshold);
+    println!("\r");
     if total > threshold {
         println!(
             "{yellow}!!!{lightRed} TIME TO COMMIT {yellow}!!!{reset}\r",
@@ -193,7 +195,14 @@ async fn alert_loop(threshold: i32, last_count: &i32) -> Result<i32, Box<dyn Err
     Ok(total)
 }
 
-fn count_changes() -> Result<i32, Box<(dyn Error + 'static)>> {
+struct Changes {
+    pub error: bool,
+    pub insertions: i32,
+    pub deletions: i32,
+    pub total: i32,
+}
+
+fn count_changes() -> Result<Changes, Box<(dyn Error + 'static)>> {
     let output = Command::new("git")
         .arg("diff")
         .arg("--shortstat")
@@ -216,19 +225,31 @@ fn count_changes() -> Result<i32, Box<(dyn Error + 'static)>> {
                 .parse::<i32>()
                 .unwrap();
 
-            Ok(insertions + deletions)
+            Ok(Changes {
+                error: false,
+                insertions,
+                deletions,
+                total: insertions + deletions,
+            })
         }
-        Err(_) => Ok(0),
+
+        Err(_) => Ok(Changes {
+            error: true,
+            insertions: 0,
+            deletions: 0,
+            total: 0,
+        }),
     }
 }
 
-fn draw_graph(changes: i32, threshold: i32) {
+fn draw_graph(changes: Changes, threshold: i32) {
+    let total = changes.total;
     let graph_width = 40;
     let graph_threshold: i32 = (graph_width as f32 * 0.66) as i32;
     for i in 1..=graph_width {
         let _absolute_point = (i as f32) / graph_width as f32;
         let relative_point: f32 = (i as f32) / (graph_threshold as f32);
-        let current: f32 = (changes as f32) / (threshold as f32);
+        let current: f32 = (total as f32) / (threshold as f32);
         let ratio = current / relative_point;
 
         // print divider
@@ -247,9 +268,14 @@ fn draw_graph(changes: i32, threshold: i32) {
         }
     }
     print!(
-        " {lightWhite}({changes}/{threshold}){reset}",
+        " {lightWhite}({white}{changes}/{threshold} {lightWhite}| {green}+{inserts} {red}-{deletes}{lightWhite}){reset}",
         lightWhite = color::Fg(color::LightWhite),
-        changes = changes,
+        white = color::Fg(color::White),
+        green = color::Fg(color::LightGreen),
+        red = color::Fg(color::LightRed),
+        inserts = changes.insertions,
+        deletes = changes.deletions,
+        changes = total,
         threshold = threshold,
         reset = color::Fg(color::Reset)
     );
