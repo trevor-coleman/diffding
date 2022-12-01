@@ -29,36 +29,8 @@ fn play_sound() {
 }
 
 // a change
-async fn run(threshold: i32, mut last_count: &i32) -> Result<(), Box<dyn Error>> {
-    let output = Command::new("git")
-        .arg("diff")
-        .arg("--shortstat")
-        .output()?;
-
-    let stdout = str::from_utf8(&output.stdout)?;
-    let re = Regex::new(r"((\d+)\D+)((\d+)\D+)?((\d+)?\D+)?")?;
-    let captures = re.captures(stdout).ok_or("No match");
-
-    let total: i32;
-    match captures {
-        Ok(captures) => {
-            let insertions = captures
-                .get(4)
-                .map_or("0", |m| m.as_str())
-                .parse::<i32>()
-                .unwrap();
-            let deletions = captures
-                .get(6)
-                .map_or("0", |m| m.as_str())
-                .parse::<i32>()
-                .unwrap();
-
-            total = insertions + deletions;
-        }
-        Err(_) => {
-            total = 0;
-        }
-    }
+async fn run(threshold: i32, mut last_count: &i32) -> Result<i32, Box<dyn Error>> {
+    let total = count_changes().unwrap();
 
     if total == 0 && last_count > &0 {
         println!(
@@ -85,7 +57,37 @@ async fn run(threshold: i32, mut last_count: &i32) -> Result<(), Box<dyn Error>>
         play_sound();
     }
 
-    Ok(())
+    Ok(total)
+}
+
+fn count_changes() -> Result<i32, Box<(dyn std::error::Error + 'static)>> {
+    let output = Command::new("git")
+        .arg("diff")
+        .arg("--shortstat")
+        .output()?;
+
+    let stdout = str::from_utf8(&output.stdout)?;
+    let re = Regex::new(r"((\d+)\D+)((\d+)\D+)?((\d+)?\D+)?")?;
+    let captures = re.captures(stdout).ok_or("No match");
+
+    let total: i32;
+    match captures {
+        Ok(captures) => {
+            let insertions = captures
+                .get(4)
+                .map_or("0", |m| m.as_str())
+                .parse::<i32>()
+                .unwrap();
+            let deletions = captures
+                .get(6)
+                .map_or("0", |m| m.as_str())
+                .parse::<i32>()
+                .unwrap();
+
+            Ok(insertions + deletions)
+        }
+        Err(_) => Ok(0),
+    }
 }
 
 fn draw_graph(changes: i32, threshold: i32) {
@@ -106,6 +108,11 @@ fn draw_graph(changes: i32, threshold: i32) {
     }
 }
 
+struct Options {
+    threshold: i32,
+    loop_time: u64,
+}
+
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
     let mut stdout = stdout().into_raw_mode().unwrap();
@@ -113,34 +120,45 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let args: Vec<String> = env::args().collect();
     let loop_time: u64;
     let threshold: i32;
+
+    let options: Options;
+
     match args.len() {
         1 => {
-            loop_time = 10;
-            threshold = 100;
+            options = Options {
+                threshold: 100,
+                loop_time: 10,
+            };
         }
         2 => {
-            loop_time = args[1].parse::<u64>().unwrap();
-            threshold = 100;
+            options = Options {
+                threshold: 100,
+                loop_time: args[1].parse::<u64>().unwrap(),
+            };
         }
         3 => {
-            loop_time = args[1].parse::<u64>().unwrap();
-            threshold = args[2].parse::<i32>().unwrap();
+            options = Options {
+                threshold: args[2].parse::<i32>().unwrap(),
+                loop_time: args[1].parse::<u64>().unwrap(),
+            };
         }
         _ => {
-            loop_time = 10;
-            threshold = 100;
+            options = Options {
+                threshold: 100,
+                loop_time: 10,
+            };
         }
     }
 
-    splash_screen(loop_time, threshold);
+    splash_screen(options.loop_time, options.threshold);
 
     let forever = spawn(async move {
-        let mut interval = time::interval(Duration::from_secs(loop_time));
-        let last_count = 0;
+        let mut interval = time::interval(Duration::from_secs(options.loop_time));
+        let mut last_count = 0;
 
         loop {
             interval.tick().await;
-            run(threshold, &last_count).await.unwrap();
+            last_count = run(options.threshold, &last_count).await.unwrap();
         }
     });
 
@@ -162,19 +180,6 @@ async fn main() -> Result<(), Box<dyn Error>> {
         let mut interval = time::interval(Duration::from_millis(100));
         loop {
             interval.tick().await;
-            //get cursor position with termion
-            let pos = stdout.cursor_pos().unwrap();
-
-            i += 1;
-            if i > 1000 {
-                i = 0
-            }
-            println!("{}", i);
-
-            println!("{}{}", Goto(10, 10), clear::CurrentLine);
-            println!("xxx{:?}xxx", i);
-            println!("{}{}", Goto(pos.0, pos.1), clear::CurrentLine);
-
             let stdin = stdin();
             for c in stdin.keys() {
                 match c.unwrap() {
