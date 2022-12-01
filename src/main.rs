@@ -6,7 +6,6 @@ use std::io::{stdin, stdout, Write};
 use std::process::Command;
 use std::time::Duration;
 use std::{env, str};
-use termion::cursor::{DetectCursorPos, Goto};
 use termion::event::Key;
 use termion::input::TermRead;
 use termion::raw::IntoRawMode;
@@ -34,7 +33,7 @@ async fn run(threshold: i32, mut last_count: &i32) -> Result<i32, Box<dyn Error>
 
     if total == 0 && last_count > &0 {
         println!(
-            "{}-----{}🎉 COMMITTED 🎉{}-----{}",
+            "{}-----{}🎉 COMMITTED 🎉{}-----{}\r",
             color::Fg(color::White),
             color::Fg(color::Blue),
             color::Fg(color::White),
@@ -60,7 +59,7 @@ async fn run(threshold: i32, mut last_count: &i32) -> Result<i32, Box<dyn Error>
     Ok(total)
 }
 
-fn count_changes() -> Result<i32, Box<(dyn std::error::Error + 'static)>> {
+fn count_changes() -> Result<i32, Box<(dyn Error + 'static)>> {
     let output = Command::new("git")
         .arg("diff")
         .arg("--shortstat")
@@ -70,7 +69,6 @@ fn count_changes() -> Result<i32, Box<(dyn std::error::Error + 'static)>> {
     let re = Regex::new(r"((\d+)\D+)((\d+)\D+)?((\d+)?\D+)?")?;
     let captures = re.captures(stdout).ok_or("No match");
 
-    let total: i32;
     match captures {
         Ok(captures) => {
             let insertions = captures
@@ -92,16 +90,26 @@ fn count_changes() -> Result<i32, Box<(dyn std::error::Error + 'static)>> {
 
 fn draw_graph(changes: i32, threshold: i32) {
     let graph_width = 40;
-    let graph_threshold = graph_width / 2;
+    let graph_threshold: i32 = (graph_width as f32 * 0.66) as i32;
     for i in 1..=graph_width {
-        let point: f32 = (i as f32) / 20_f32;
+        let absolute_point = (i as f32) / graph_width as f32;
+        let relative_point: f32 = (i as f32) / (graph_threshold as f32);
         let current: f32 = (changes as f32) / (threshold as f32);
-        let ratio = current / point;
+        let ratio = current / relative_point;
 
-        if ratio > 1.0 {
-            print!("{}{}", color::Fg(color::LightRed), "█");
+        // print divider
+        if (relative_point - 1.0).abs() < 0.001 {
+            print!("{}{}", color::Fg(color::LightWhite), "█");
+        } else if ratio > 1.0 {
+            if (relative_point > 1.0) {
+                print!("{}{}", color::Fg(color::LightRed), "█");
+            } else if (relative_point > 0.66) {
+                print!("{}{}", color::Fg(color::LightYellow), "█");
+            } else {
+                print!("{}{}", color::Fg(color::LightGreen), "█");
+            }
         } else {
-            print!("{}{}", color::Fg(color::LightGreen), "█");
+            print!("{}{}", color::Fg(color::White), "█");
         }
 
         print!("{}", color::Fg(color::Reset));
@@ -111,6 +119,7 @@ fn draw_graph(changes: i32, threshold: i32) {
 struct Options {
     threshold: i32,
     loop_time: u64,
+    volume: f32,
 }
 
 #[tokio::main]
@@ -118,37 +127,34 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let mut stdout = stdout().into_raw_mode().unwrap();
 
     let args: Vec<String> = env::args().collect();
-    let loop_time: u64;
-    let threshold: i32;
 
-    let options: Options;
-
-    match args.len() {
-        1 => {
-            options = Options {
-                threshold: 100,
-                loop_time: 10,
-            };
-        }
-        2 => {
-            options = Options {
-                threshold: 100,
-                loop_time: args[1].parse::<u64>().unwrap(),
-            };
-        }
-        3 => {
-            options = Options {
-                threshold: args[2].parse::<i32>().unwrap(),
-                loop_time: args[1].parse::<u64>().unwrap(),
-            };
-        }
-        _ => {
-            options = Options {
-                threshold: 100,
-                loop_time: 10,
-            };
-        }
-    }
+    let options: Options = match args.len() {
+        1 => Options {
+            threshold: 100,
+            loop_time: 10,
+            volume: 1_f32,
+        },
+        2 => Options {
+            threshold: 100,
+            loop_time: args[1].parse::<u64>().unwrap(),
+            volume: 1_f32,
+        },
+        3 => Options {
+            threshold: args[2].parse::<i32>().unwrap(),
+            loop_time: args[1].parse::<u64>().unwrap(),
+            volume: 1_f32,
+        },
+        4 => Options {
+            threshold: args[2].parse::<i32>().unwrap(),
+            loop_time: args[1].parse::<u64>().unwrap(),
+            volume: args[3].parse::<f32>().unwrap(),
+        },
+        _ => Options {
+            threshold: 100,
+            loop_time: 10,
+            volume: 1_f32,
+        },
+    };
 
     splash_screen(options.loop_time, options.threshold);
 
@@ -176,7 +182,6 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     // listen for keypress and print to console
     let listen_for_keypress = spawn(async move {
-        let mut i = 0;
         let mut interval = time::interval(Duration::from_millis(100));
         loop {
             interval.tick().await;
@@ -206,27 +211,36 @@ async fn main() -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
-fn splash_screen(loop_time: u64, line_count: i32) {
+fn splash_screen(loop_time: u64, threshold: i32) {
     println!("{}", clear::All);
     println!(
-        "\n{red}COMMIT REMINDER!{reset}\r\n\n",
+        "\n{red}COMMIT REMINDER!{reset}\r\n",
         red = color::Fg(color::Red),
         reset = color::Fg(color::Reset)
     );
 
     println!(
-        "{blue}Loop time      : {white}{loop_time:?} seconds{reset}\r",
+        "{blue}Loop time      : {lightWhite}{loop_time:?} {white}seconds{reset}\r",
         blue = color::Fg(color::Blue),
+        lightWhite = color::Fg(color::LightWhite),
         white = color::Fg(color::White),
         loop_time = loop_time,
         reset = color::Fg(color::Reset)
     );
 
     println!(
-        "{blue}Changes allowed: {white}{line_count:?} seconds{reset}\r\n\n",
+        "{blue}Threshold      : {lightWhite}{threshold:?} {white}seconds{reset}\r\n\n",
         blue = color::Fg(color::Blue),
+        lightWhite = color::Fg(color::LightWhite),
         white = color::Fg(color::White),
-        line_count = line_count,
+        threshold = threshold,
         reset = color::Fg(color::Reset)
+    );
+
+    println!(
+        "{lightWhite}Press {red}Q{lightWhite} to quit{reset}\n\n\r",
+        red = color::Fg(color::LightCyan),
+        reset = color::Fg(color::Reset),
+        lightWhite = color::Fg(color::LightWhite)
     );
 }
