@@ -29,7 +29,7 @@ fn play_sound() {
 }
 
 // a change
-async fn run(threshold: i32) -> Result<(), Box<dyn Error>> {
+async fn run(threshold: i32, mut last_count: &i32) -> Result<(), Box<dyn Error>> {
     let output = Command::new("git")
         .arg("diff")
         .arg("--shortstat")
@@ -58,6 +58,16 @@ async fn run(threshold: i32) -> Result<(), Box<dyn Error>> {
         Err(_) => {
             total = 0;
         }
+    }
+
+    if total == 0 && last_count > &0 {
+        println!(
+            "{}-----{}🎉 COMMITTED 🎉{}-----{}",
+            color::Fg(color::White),
+            color::Fg(color::Blue),
+            color::Fg(color::White),
+            color::Fg(color::Reset)
+        );
     }
 
     let date = Local::now();
@@ -126,10 +136,11 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     let forever = spawn(async move {
         let mut interval = time::interval(Duration::from_secs(loop_time));
+        let last_count = 0;
 
         loop {
             interval.tick().await;
-            run(threshold).await.unwrap();
+            run(threshold, &last_count).await.unwrap();
         }
     });
 
