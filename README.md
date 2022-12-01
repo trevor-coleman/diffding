@@ -20,3 +20,4 @@ reminds you to commit your changes once you exceed a certain number of inserts a
 * **Git integration** - commit directly from diffding
 * **Config file(s)** - set preferences on a per-repo or global basis
 * **More bells and whistles** -- literally. different sounds.
+* **Volume control** - because sometimes the ding is just too much
