@@ -12,113 +12,10 @@ use termion::raw::IntoRawMode;
 use termion::{clear, color};
 use tokio::{spawn, time};
 
-// fn terminal_bell() {
-//     print!("\x07");
-// }
-
-fn play_sound() {
-    let sl = Soloud::default().unwrap();
-    let mut wav = Wav::default();
-    wav.load_mem(include_bytes!("./387533__soundwarf__alert-short.wav"))
-        .unwrap();
-    sl.play(&wav);
-    while sl.voice_count() > 0 {
-        std::thread::sleep(Duration::from_millis(100));
-    }
-}
-
-// a change
-async fn run(threshold: i32, mut last_count: &i32) -> Result<i32, Box<dyn Error>> {
-    let total = count_changes().unwrap();
-
-    if total == 0 && last_count > &0 {
-        println!(
-            "{}-----{}🎉 COMMITTED 🎉{}-----{}\r",
-            color::Fg(color::White),
-            color::Fg(color::Blue),
-            color::Fg(color::White),
-            color::Fg(color::Reset)
-        );
-    }
-
-    let date = Local::now();
-
-    print!("{} -- ", date.format("%H:%M:%S"));
-    draw_graph(total, threshold);
-    println!(" -- You've made {:?} insertions and deletions\r", total);
-    if total > threshold {
-        println!(
-            "{yellow}!!!{lightRed} TIME TO COMMIT {yellow}!!!{reset}\r",
-            lightRed = color::Fg(color::LightRed),
-            yellow = color::Fg(color::LightYellow),
-            reset = color::Fg(color::Reset)
-        );
-        play_sound();
-    }
-
-    Ok(total)
-}
-
-fn count_changes() -> Result<i32, Box<(dyn Error + 'static)>> {
-    let output = Command::new("git")
-        .arg("diff")
-        .arg("--shortstat")
-        .output()?;
-
-    let stdout = str::from_utf8(&output.stdout)?;
-    let re = Regex::new(r"((\d+)\D+)((\d+)\D+)?((\d+)?\D+)?")?;
-    let captures = re.captures(stdout).ok_or("No match");
-
-    match captures {
-        Ok(captures) => {
-            let insertions = captures
-                .get(4)
-                .map_or("0", |m| m.as_str())
-                .parse::<i32>()
-                .unwrap();
-            let deletions = captures
-                .get(6)
-                .map_or("0", |m| m.as_str())
-                .parse::<i32>()
-                .unwrap();
-
-            Ok(insertions + deletions)
-        }
-        Err(_) => Ok(0),
-    }
-}
-
-fn draw_graph(changes: i32, threshold: i32) {
-    let graph_width = 40;
-    let graph_threshold: i32 = (graph_width as f32 * 0.66) as i32;
-    for i in 1..=graph_width {
-        let absolute_point = (i as f32) / graph_width as f32;
-        let relative_point: f32 = (i as f32) / (graph_threshold as f32);
-        let current: f32 = (changes as f32) / (threshold as f32);
-        let ratio = current / relative_point;
-
-        // print divider
-        if (relative_point - 1.0).abs() < 0.001 {
-            print!("{}{}", color::Fg(color::LightWhite), "█");
-        } else if ratio > 1.0 {
-            if (relative_point > 1.0) {
-                print!("{}{}", color::Fg(color::LightRed), "█");
-            } else if (relative_point > 0.66) {
-                print!("{}{}", color::Fg(color::LightYellow), "█");
-            } else {
-                print!("{}{}", color::Fg(color::LightGreen), "█");
-            }
-        } else {
-            print!("{}{}", color::Fg(color::White), "█");
-        }
-
-        print!("{}", color::Fg(color::Reset));
-    }
-}
-
 struct Options {
     threshold: i32,
     loop_time: u64,
+    #[allow(dead_code)]
     volume: f32,
 }
 
@@ -164,15 +61,17 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
         loop {
             interval.tick().await;
-            last_count = run(options.threshold, &last_count).await.unwrap();
+            last_count = alert_loop(options.threshold, &last_count).await.unwrap();
         }
     });
 
     let quit = move || {
         println!("\r");
-        println!("Quitting\r");
-        //turn off raw mode
-
+        println!(
+            "{lightGreen}Quitting!!{reset}\r",
+            lightGreen = color::Fg(color::LightGreen),
+            reset = color::Fg(color::Reset)
+        );
         std::process::exit(0);
     };
 
@@ -193,10 +92,11 @@ async fn main() -> Result<(), Box<dyn Error>> {
                         quit();
                     }
                     Key::Char(' ') => {
-                        println!("Snoozing!\r")
-                    }
-                    Key::Char('l') => {
-                        print!("Lalalalala");
+                        println!(
+                            "{blue}I would snooze, but it's not implemented yet!{reset}\r",
+                            blue = color::Fg(color::Blue),
+                            reset = color::Fg(color::Reset)
+                        );
                     }
                     _ => {}
                 }
@@ -214,13 +114,13 @@ async fn main() -> Result<(), Box<dyn Error>> {
 fn splash_screen(loop_time: u64, threshold: i32) {
     println!("{}", clear::All);
     println!(
-        "\n{red}COMMIT REMINDER!{reset}\r\n",
+        "\n{red}DIFF DING: COMMIT REMINDER!{reset}\r\n",
         red = color::Fg(color::Red),
         reset = color::Fg(color::Reset)
     );
 
     println!(
-        "{blue}Loop time      : {lightWhite}{loop_time:?} {white}seconds{reset}\r",
+        "{blue}Interval       : {lightWhite}{loop_time:?} {white}seconds{reset}\r",
         blue = color::Fg(color::Blue),
         lightWhite = color::Fg(color::LightWhite),
         white = color::Fg(color::White),
@@ -242,5 +142,115 @@ fn splash_screen(loop_time: u64, threshold: i32) {
         red = color::Fg(color::LightCyan),
         reset = color::Fg(color::Reset),
         lightWhite = color::Fg(color::LightWhite)
+    );
+}
+
+fn play_sound() {
+    let sl = Soloud::default().unwrap();
+    let mut wav = Wav::default();
+    wav.load_mem(include_bytes!("./387533__soundwarf__alert-short.wav"))
+        .unwrap();
+    sl.play(&wav);
+    while sl.voice_count() > 0 {
+        std::thread::sleep(Duration::from_millis(100));
+    }
+}
+
+// a change
+async fn alert_loop(threshold: i32, last_count: &i32) -> Result<i32, Box<dyn Error>> {
+    let total = count_changes().unwrap();
+
+    if total == 0 && last_count > &0 {
+        println!(
+            "{}-----{}🎉 COMMITTED 🎉{}-----{}\r",
+            color::Fg(color::White),
+            color::Fg(color::Blue),
+            color::Fg(color::White),
+            color::Fg(color::Reset)
+        );
+    }
+
+    let date = Local::now();
+
+    print!("{} -- ", date.format("%H:%M:%S"));
+    draw_graph(total, threshold);
+    println!(" -- You've made {:?} insertions and deletions\r", total);
+    if total > threshold {
+        println!(
+            "{yellow}!!!{lightRed} TIME TO COMMIT {yellow}!!!{reset}\r",
+            lightRed = color::Fg(color::LightRed),
+            yellow = color::Fg(color::LightYellow),
+            reset = color::Fg(color::Reset)
+        );
+        println!(
+            "{red}Press space to snooze{reset}\r",
+            red = color::Fg(color::Red),
+            reset = color::Fg(color::Reset)
+        );
+        play_sound();
+    }
+
+    Ok(total)
+}
+
+fn count_changes() -> Result<i32, Box<(dyn Error + 'static)>> {
+    let output = Command::new("git")
+        .arg("diff")
+        .arg("--shortstat")
+        .output()?;
+
+    let stdout = str::from_utf8(&output.stdout)?;
+    let re = Regex::new(r"((\d+)\D+)((\d+)\D+)?((\d+)?\D+)?")?;
+    let captures = re.captures(stdout).ok_or("No match");
+
+    match captures {
+        Ok(captures) => {
+            let insertions = captures
+                .get(4)
+                .map_or("0", |m| m.as_str())
+                .parse::<i32>()
+                .unwrap();
+            let deletions = captures
+                .get(6)
+                .map_or("0", |m| m.as_str())
+                .parse::<i32>()
+                .unwrap();
+
+            Ok(insertions + deletions)
+        }
+        Err(_) => Ok(0),
+    }
+}
+
+fn draw_graph(changes: i32, threshold: i32) {
+    let graph_width = 40;
+    let graph_threshold: i32 = (graph_width as f32 * 0.66) as i32;
+    for i in 1..=graph_width {
+        let _absolute_point = (i as f32) / graph_width as f32;
+        let relative_point: f32 = (i as f32) / (graph_threshold as f32);
+        let current: f32 = (changes as f32) / (threshold as f32);
+        let ratio = current / relative_point;
+
+        // print divider
+        if (relative_point - 1.0).abs() < 0.001 {
+            print!("{}█", color::Fg(color::LightWhite));
+        } else if ratio > 1.0 {
+            if relative_point > 1.0 {
+                print!("{}█", color::Fg(color::LightRed));
+            } else if relative_point > 0.66 {
+                print!("{}█", color::Fg(color::LightYellow));
+            } else {
+                print!("{}█", color::Fg(color::LightGreen));
+            }
+        } else {
+            print!("{}█", color::Fg(color::White));
+        }
+    }
+    print!(
+        " {lightWhite}({changes}/{threshold}){reset}",
+        lightWhite = color::Fg(color::LightWhite),
+        changes = changes,
+        threshold = threshold,
+        reset = color::Fg(color::Reset)
     );
 }
