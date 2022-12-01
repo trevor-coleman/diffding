@@ -91,18 +91,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "commit-timer"
-version = "0.1.0"
-dependencies = [
- "chrono",
- "regex",
- "soloud",
- "termion",
- "timer",
- "tokio",
-]
-
-[[package]]
 name = "core-foundation-sys"
 version = "0.8.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -150,6 +138,18 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn",
+]
+
+[[package]]
+name = "diffding"
+version = "0.1.0"
+dependencies = [
+ "chrono",
+ "regex",
+ "soloud",
+ "termion",
+ "timer",
+ "tokio",
 ]
 
 [[package]]
