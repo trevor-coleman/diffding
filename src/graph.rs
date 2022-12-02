@@ -1,4 +1,4 @@
-use diffding::Changes;
+use crate::Changes;
 use termion::color;
 
 pub fn draw_graph(changes: Changes, threshold: i32) {

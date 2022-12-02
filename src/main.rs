@@ -1,8 +1,13 @@
 mod graph;
+mod splash;
 
+use crate::graph::draw_graph;
+use crate::splash::splash_screen;
 use chrono::Local;
 use config::{Config, File};
 use regex::Regex;
+
+use serde_derive::Deserialize;
 use soloud::*;
 use std::collections::HashMap;
 use std::error::Error;
@@ -11,13 +16,15 @@ use std::path::PathBuf;
 use std::process::Command;
 use std::time::Duration;
 use std::{env, str};
+use termion::color;
 use termion::event::Key;
 use termion::input::TermRead;
 use termion::raw::IntoRawMode;
-use termion::{clear, color};
 use tokio::{spawn, time};
 
+#[derive(Debug, Deserialize)]
 struct Options {
+    sound: Option<PathBuf>,
     threshold: i32,
     loop_time: u64,
     #[allow(dead_code)]
@@ -37,42 +44,51 @@ async fn main() -> Result<(), Box<dyn Error>> {
         // You may also programmatically change settings
         .build()?;
 
-    println!(
-        "CONFIG: {:?}",
-        settings
-            .try_deserialize::<HashMap<String, String>>()
-            .unwrap()
-    );
+    let settings = settings
+        .try_deserialize::<HashMap<String, String>>()
+        .unwrap();
+
+    println!("CONFIG: {:?}", settings);
+
+    let config_options = Options {
+        sound: match settings.get("sound") {
+            Some(sound) => Some(PathBuf::from(config_path.join(sound))),
+            None => None,
+        },
+        threshold: settings
+            .get("threshold")
+            .unwrap_or(&"".to_string())
+            .parse::<i32>()
+            .unwrap_or(100),
+        loop_time: settings
+            .get("interval")
+            .unwrap_or(&"".to_string())
+            .parse::<u64>()
+            .unwrap_or(10),
+        volume: settings
+            .get("volume")
+            .unwrap_or(&"".to_string())
+            .parse::<f32>()
+            .unwrap_or(1.0),
+    };
 
     let mut stdout = stdout().into_raw_mode().unwrap();
 
     let args: Vec<String> = env::args().collect();
 
     let options: Options = match args.len() {
-        1 => Options {
-            threshold: 100,
-            loop_time: 10,
-            volume: 1_f32,
-        },
+        1 => config_options,
         2 => Options {
-            threshold: 100,
             loop_time: args[1].parse::<u64>().unwrap(),
-            volume: 1_f32,
-        },
-        3 => Options {
-            threshold: args[2].parse::<i32>().unwrap(),
-            loop_time: args[1].parse::<u64>().unwrap(),
-            volume: 1_f32,
-        },
-        4 => Options {
-            threshold: args[2].parse::<i32>().unwrap(),
-            loop_time: args[1].parse::<u64>().unwrap(),
-            volume: args[3].parse::<f32>().unwrap(),
+            sound: config_options.sound,
+            threshold: config_options.threshold,
+            volume: config_options.volume,
         },
         _ => Options {
-            threshold: 100,
-            loop_time: 10,
-            volume: 1_f32,
+            loop_time: args[1].parse::<u64>().unwrap(),
+            sound: config_options.sound,
+            threshold: args[2].parse::<i32>().unwrap(),
+            volume: config_options.volume,
         },
     };
 
@@ -84,7 +100,9 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
         loop {
             interval.tick().await;
-            last_count = alert_loop(options.threshold, &last_count).await.unwrap();
+            last_count = alert_loop(options.threshold, &last_count, &options.sound)
+                .await
+                .unwrap();
         }
     });
 
@@ -134,45 +152,38 @@ async fn main() -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
-fn splash_screen(loop_time: u64, threshold: i32) {
-    println!("{}", clear::All);
-    println!(
-        "\n{red}DIFF DING: COMMIT REMINDER!{reset}\r\n",
-        red = color::Fg(color::Red),
-        reset = color::Fg(color::Reset)
-    );
-
-    println!(
-        "{blue}Interval       : {lightWhite}{loop_time:?} {white}seconds{reset}\r",
-        blue = color::Fg(color::Blue),
-        lightWhite = color::Fg(color::LightWhite),
-        white = color::Fg(color::White),
-        loop_time = loop_time,
-        reset = color::Fg(color::Reset)
-    );
-
-    println!(
-        "{blue}Threshold      : {lightWhite}{threshold:?} {white}seconds{reset}\r\n\n",
-        blue = color::Fg(color::Blue),
-        lightWhite = color::Fg(color::LightWhite),
-        white = color::Fg(color::White),
-        threshold = threshold,
-        reset = color::Fg(color::Reset)
-    );
-
-    println!(
-        "{lightWhite}Press {red}Q{lightWhite} to quit{reset}\n\n\r",
-        red = color::Fg(color::LightCyan),
-        reset = color::Fg(color::Reset),
-        lightWhite = color::Fg(color::LightWhite)
-    );
-}
-
-fn play_sound() {
+fn play_sound(sound_path: &Option<PathBuf>) {
+    println!("---Playing sound---");
     let sl = Soloud::default().unwrap();
     let mut wav = Wav::default();
-    wav.load_mem(include_bytes!("./387533__soundwarf__alert-short.wav"))
-        .unwrap();
+    print!("Playing sound: ");
+    match sound_path {
+        None => {
+            println!("No sound file found, using default\r");
+            wav.load_mem(include_bytes!("./387533__soundwarf__alert-short.wav"))
+                .unwrap();
+        }
+        Some(path) => {
+            if path.exists() {
+                println!("Path exists {:?}!\r", path);
+                let result = wav.load(path);
+                match result {
+                    Ok(_) => {
+                        println!("Loaded sound file {:?}!\r", path);
+                    }
+                    Err(e) => {
+                        println!("Error loading sound file -- loading default sound: {:?}", e);
+                        wav.load_mem(include_bytes!("./387533__soundwarf__alert-short.wav"))
+                            .unwrap();
+                    }
+                }
+            } else {
+                println!("Path does not exist {:?}!\r", path);
+                wav.load_mem(include_bytes!("./387533__soundwarf__alert-short.wav"))
+                    .unwrap();
+            }
+        }
+    }
     sl.play(&wav);
     while sl.voice_count() > 0 {
         std::thread::sleep(Duration::from_millis(100));
@@ -180,7 +191,11 @@ fn play_sound() {
 }
 
 // a change
-async fn alert_loop(threshold: i32, last_count: &i32) -> Result<i32, Box<dyn Error>> {
+async fn alert_loop(
+    threshold: i32,
+    last_count: &i32,
+    sound_path: &Option<PathBuf>,
+) -> Result<i32, Box<dyn Error>> {
     let changes = count_changes().unwrap();
 
     let total = changes.total;
@@ -201,6 +216,7 @@ async fn alert_loop(threshold: i32, last_count: &i32) -> Result<i32, Box<dyn Err
     draw_graph(changes, threshold);
     println!("\r");
     if total > threshold {
+        play_sound(sound_path);
         println!(
             "{yellow}!!!{lightRed} TIME TO COMMIT {yellow}!!!{reset}\r",
             lightRed = color::Fg(color::LightRed),
@@ -212,13 +228,12 @@ async fn alert_loop(threshold: i32, last_count: &i32) -> Result<i32, Box<dyn Err
             red = color::Fg(color::Red),
             reset = color::Fg(color::Reset)
         );
-        play_sound();
     }
 
     Ok(total)
 }
 
-struct Changes {
+pub struct Changes {
     pub insertions: i32,
     pub deletions: i32,
     pub total: i32,
