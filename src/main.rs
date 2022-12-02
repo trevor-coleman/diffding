@@ -196,7 +196,6 @@ async fn alert_loop(threshold: i32, last_count: &i32) -> Result<i32, Box<dyn Err
 }
 
 struct Changes {
-    pub error: bool,
     pub insertions: i32,
     pub deletions: i32,
     pub total: i32,
@@ -226,7 +225,6 @@ fn count_changes() -> Result<Changes, Box<(dyn Error + 'static)>> {
                 .unwrap();
 
             Ok(Changes {
-                error: false,
                 insertions,
                 deletions,
                 total: insertions + deletions,
@@ -234,7 +232,6 @@ fn count_changes() -> Result<Changes, Box<(dyn Error + 'static)>> {
         }
 
         Err(_) => Ok(Changes {
-            error: true,
             insertions: 0,
             deletions: 0,
             total: 0,

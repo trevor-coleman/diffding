@@ -7,8 +7,8 @@ reminds you to commit your changes once you exceed a certain number of inserts a
 
 `diffding [interval] [threshold]`
 
-* **interval**: the number of seconds between checks
-* **threshold**: the number of inserts and deletes allowed before a reminder
+* **interval**: the number of seconds between checks (defaults to 10)
+* **threshold**: the number of inserts and deletes allowed before a reminder (defaults to 100)
 
 ## Installation
 
