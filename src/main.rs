@@ -1,8 +1,11 @@
 use chrono::Local;
+use config::{Config, File};
 use regex::Regex;
 use soloud::*;
+use std::collections::HashMap;
 use std::error::Error;
 use std::io::{stdin, stdout, Write};
+use std::path::PathBuf;
 use std::process::Command;
 use std::time::Duration;
 use std::{env, str};
@@ -21,6 +24,24 @@ struct Options {
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
+    let mut config_path = PathBuf::new();
+    config_path.push(env::var("HOME").unwrap());
+    config_path.push(".config");
+    config_path.push("diffding");
+
+    let settings = Config::builder()
+        // Start off by merging in the "default" configuration file
+        .add_source(File::from(config_path.join("config.toml")).required(false))
+        // You may also programmatically change settings
+        .build()?;
+
+    println!(
+        "CONFIG: {:?}",
+        settings
+            .try_deserialize::<HashMap<String, String>>()
+            .unwrap()
+    );
+
     let mut stdout = stdout().into_raw_mode().unwrap();
 
     let args: Vec<String> = env::args().collect();
