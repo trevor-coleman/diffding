@@ -1,5 +1,5 @@
 use crate::Options;
-use termion::{clear, color, cursor};
+use termion::{clear, color};
 
 pub fn splash_screen(options: &Options) {
     println!("{}", clear::All);

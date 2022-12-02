@@ -165,7 +165,7 @@ fn play_sound(sound_path: &Option<PathBuf>) {
                 let result = wav.load(path);
                 match result {
                     Ok(_) => {}
-                    Err(e) => {
+                    Err(_) => {
                         wav.load_mem(include_bytes!("./387533__soundwarf__alert-short.wav"))
                             .unwrap();
                     }
