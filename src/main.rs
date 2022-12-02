@@ -16,14 +16,14 @@ use std::path::PathBuf;
 use std::process::Command;
 use std::time::Duration;
 use std::{env, str};
-use termion::color;
 use termion::event::Key;
 use termion::input::TermRead;
 use termion::raw::IntoRawMode;
+use termion::{clear, color, cursor};
 use tokio::{spawn, time};
 
 #[derive(Debug, Deserialize)]
-struct Options {
+pub struct Options {
     sound: Option<PathBuf>,
     threshold: i32,
     loop_time: u64,
@@ -92,7 +92,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
         },
     };
 
-    splash_screen(options.loop_time, options.threshold);
+    splash_screen(&options);
 
     let forever = spawn(async move {
         let mut interval = time::interval(Duration::from_secs(options.loop_time));
@@ -153,32 +153,24 @@ async fn main() -> Result<(), Box<dyn Error>> {
 }
 
 fn play_sound(sound_path: &Option<PathBuf>) {
-    println!("---Playing sound---");
     let sl = Soloud::default().unwrap();
     let mut wav = Wav::default();
-    print!("Playing sound: ");
     match sound_path {
         None => {
-            println!("No sound file found, using default\r");
             wav.load_mem(include_bytes!("./387533__soundwarf__alert-short.wav"))
                 .unwrap();
         }
         Some(path) => {
             if path.exists() {
-                println!("Path exists {:?}!\r", path);
                 let result = wav.load(path);
                 match result {
-                    Ok(_) => {
-                        println!("Loaded sound file {:?}!\r", path);
-                    }
+                    Ok(_) => {}
                     Err(e) => {
-                        println!("Error loading sound file -- loading default sound: {:?}", e);
                         wav.load_mem(include_bytes!("./387533__soundwarf__alert-short.wav"))
                             .unwrap();
                     }
                 }
             } else {
-                println!("Path does not exist {:?}!\r", path);
                 wav.load_mem(include_bytes!("./387533__soundwarf__alert-short.wav"))
                     .unwrap();
             }
@@ -202,7 +194,7 @@ async fn alert_loop(
 
     if total == 0 && last_count > &0 {
         println!(
-            "{}-----{}🎉 COMMITTED 🎉{}-----{}\r",
+            "\n\n\r{}-----{}🎉 COMMITTED 🎉{}-----{}\n\n\r",
             color::Fg(color::White),
             color::Fg(color::Blue),
             color::Fg(color::White),
@@ -211,23 +203,45 @@ async fn alert_loop(
     }
 
     let date = Local::now();
-
+    print!("{}{}", cursor::Up(7), clear::CurrentLine);
     print!("{} -- ", date.format("%H:%M:%S"));
     draw_graph(changes, threshold);
     println!("\r");
     if total > threshold {
-        play_sound(sound_path);
         println!(
-            "{yellow}!!!{lightRed} TIME TO COMMIT {yellow}!!!{reset}\r",
+            "\n\r{yellow}!!!{lightRed} TIME TO COMMIT {yellow}!!!{reset}\n\r",
             lightRed = color::Fg(color::LightRed),
             yellow = color::Fg(color::LightYellow),
             reset = color::Fg(color::Reset)
         );
         println!(
-            "{red}Press space to snooze{reset}\r",
-            red = color::Fg(color::Red),
+            // spacer to hold space for the snooze message
+            "\r",
+            // "{white}Press space to snooze (coming soon){reset}\r",
+            // white = color::Fg(color::White),
+            // reset = color::Fg(color::Reset)
+        );
+    } else {
+        println!(
+            "\n\r{white}Watching for changes...{reset}\n\r",
+            white = color::Fg(color::White),
             reset = color::Fg(color::Reset)
         );
+        println!(
+            "{green}👍🏻 Keep up the good work!{reset}\r",
+            green = color::Fg(color::Green),
+            reset = color::Fg(color::Reset)
+        );
+    }
+
+    println!(
+        "\n\r{lightWhite}Press {red}Q{lightWhite} to quit{reset}\r",
+        red = color::Fg(color::LightCyan),
+        reset = color::Fg(color::Reset),
+        lightWhite = color::Fg(color::LightWhite)
+    );
+    if { total > threshold } {
+        play_sound(sound_path);
     }
 
     Ok(total)
@@ -276,3 +290,60 @@ fn count_changes() -> Result<Changes, Box<(dyn Error + 'static)>> {
         }),
     }
 }
+
+// test
+// test
+// test
+// test
+// test
+// test
+// test
+// test
+// test
+// test
+// test
+// test
+// test
+// test
+// test
+// test
+// test
+// test
+// test
+// test
+// test
+// test
+// test
+// test
+// test
+// test
+// test
+// test
+// test
+// test
+// test
+// test
+// test
+// test
+// test
+// test
+// test
+// test
+// test
+// test
+// test
+// test
+// test
+// test
+// test
+// test
+// test
+// test
+// test
+// test
+// test
+// test
+// test
+// test
+// test
+// test

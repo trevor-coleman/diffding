@@ -1,35 +1,51 @@
-use termion::{clear, color};
+use crate::Options;
+use termion::{clear, color, cursor};
 
-pub fn splash_screen(loop_time: u64, threshold: i32) {
+pub fn splash_screen(options: &Options) {
     println!("{}", clear::All);
     println!(
-        "\n{red}DIFF DING: COMMIT REMINDER!{reset}\r\n",
-        red = color::Fg(color::Red),
+        "{title_color}DIFF DING: COMMIT REMINDER!{reset}\r",
+        title_color = color::Fg(color::LightCyan),
+        reset = color::Fg(color::Reset)
+    );
+    println!(
+        "{underline_color}----------------------------{reset}\r\n",
+        underline_color = color::Fg(color::LightCyan),
         reset = color::Fg(color::Reset)
     );
 
+    print_option("Loop Time", &options.loop_time.to_string(), Some("seconds"));
+    print_option(
+        "Threshold",
+        &options.threshold.to_string(),
+        Some("inserts and deletes"),
+    );
+    print_option(
+        "Sound",
+        match &options.sound {
+            None => "Default",
+            Some(path) => &path.to_str().unwrap(),
+        },
+        None,
+    );
+    print_option("Volume", &options.volume.to_string(), Some("/1.0"));
+
+    println!("\n\n\n\n\n\n\n\n\n\r")
+}
+
+fn print_option(name: &str, value: &str, description: Option<&str>) {
+    let description = match description {
+        Some(desc) => desc,
+        None => "",
+    };
     println!(
-        "{blue}Interval       : {lightWhite}{loop_time:?} {white}seconds{reset}\r",
+        "{blue}{name:10}: {lightWhite}{value} {white}{description}{reset}\r",
         blue = color::Fg(color::Blue),
         lightWhite = color::Fg(color::LightWhite),
         white = color::Fg(color::White),
-        loop_time = loop_time,
-        reset = color::Fg(color::Reset)
-    );
-
-    println!(
-        "{blue}Threshold      : {lightWhite}{threshold:?} {white}seconds{reset}\r\n\n",
-        blue = color::Fg(color::Blue),
-        lightWhite = color::Fg(color::LightWhite),
-        white = color::Fg(color::White),
-        threshold = threshold,
-        reset = color::Fg(color::Reset)
-    );
-
-    println!(
-        "{lightWhite}Press {red}Q{lightWhite} to quit{reset}\n\n\r",
-        red = color::Fg(color::LightCyan),
+        name = name,
+        value = value,
         reset = color::Fg(color::Reset),
-        lightWhite = color::Fg(color::LightWhite)
+        description = description
     );
 }
