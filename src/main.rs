@@ -169,22 +169,19 @@ fn play_sound(sound_path: &Option<PathBuf>) {
     let mut wav = Wav::default();
     match sound_path {
         None => {
-            wav.load_mem(include_bytes!("assets/387533__soundwarf__alert-short.wav"))
-                .unwrap();
+            load_default_sound(&mut wav);
         }
         Some(path) => {
             if path.exists() {
                 let result = wav.load(path);
                 match result {
-                    Ok(_) => {}
                     Err(_) => {
-                        wav.load_mem(include_bytes!("assets/387533__soundwarf__alert-short.wav"))
-                            .unwrap();
+                        load_default_sound(&mut wav);
                     }
+                    _ => {}
                 }
             } else {
-                wav.load_mem(include_bytes!("assets/387533__soundwarf__alert-short.wav"))
-                    .unwrap();
+                load_default_sound(&mut wav);
             }
         }
     }
@@ -192,6 +189,11 @@ fn play_sound(sound_path: &Option<PathBuf>) {
     while sl.voice_count() > 0 {
         std::thread::sleep(Duration::from_millis(100));
     }
+}
+
+fn load_default_sound(wav: &mut Wav) {
+    wav.load_mem(include_bytes!("assets/387533__soundwarf__alert-short.wav"))
+        .unwrap();
 }
 
 // a change
