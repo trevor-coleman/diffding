@@ -1,13 +1,3 @@
-mod graph;
-mod messages;
-mod splash;
-
-use crate::splash::splash_screen;
-use color::{Fg, LightYellow, Reset};
-use config::{Config, File};
-use regex::Regex;
-use serde_derive::Deserialize;
-use soloud::*;
 use std::collections::HashMap;
 use std::error::Error;
 use std::io::{stdin, stdout, Write};
@@ -15,11 +5,22 @@ use std::path::PathBuf;
 use std::process::Command;
 use std::time::Duration;
 use std::{env, str};
+
+use color::{Fg, LightYellow, Reset};
+use config::{Config, File};
+use regex::Regex;
+use serde_derive::Deserialize;
+use soloud::*;
 use termion::event::Key;
 use termion::{clear, color, cursor};
 use termion::{input::TermRead, raw::IntoRawMode};
-
 use tokio::{spawn, time};
+
+use crate::splash::splash_screen;
+
+mod graph;
+mod messages;
+mod splash;
 
 #[derive(Debug, Deserialize)]
 pub struct Options {
@@ -39,10 +40,7 @@ pub struct LoopState {
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
-    let mut config_path = PathBuf::new();
-    config_path.push(env::var("HOME").unwrap());
-    config_path.push(".config");
-    config_path.push("diffding");
+    let config_path = get_config_path();
 
     let settings = Config::builder()
         .add_source(File::from(config_path.join("config.toml")).required(false))
@@ -160,6 +158,14 @@ async fn main() -> Result<(), Box<dyn Error>> {
     listen_for_keypress.await.unwrap();
 
     Ok(())
+}
+
+fn get_config_path() -> PathBuf {
+    let mut config_path = PathBuf::new();
+    config_path.push(env::var("HOME").unwrap());
+    config_path.push(".config");
+    config_path.push("diffding");
+    config_path
 }
 
 fn play_sound(sound_path: &Option<PathBuf>) {
