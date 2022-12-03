@@ -1,13 +1,11 @@
-use std::collections::HashMap;
 use std::error::Error;
 use std::io::{stdin, stdout, Write};
 use std::path::PathBuf;
 use std::process::Command;
+use std::str;
 use std::time::Duration;
-use std::{env, str};
 
 use color::{Fg, LightYellow, Reset};
-use config::{Config, File};
 use regex::Regex;
 use serde_derive::Deserialize;
 use soloud::*;
@@ -20,6 +18,7 @@ use crate::splash::splash_screen;
 
 mod graph;
 mod messages;
+mod options;
 mod splash;
 
 #[derive(Debug, Deserialize)]
@@ -40,59 +39,9 @@ pub struct LoopState {
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
-    let config_path = get_config_path();
-
-    let settings = Config::builder()
-        .add_source(File::from(config_path.join("config.toml")).required(false))
-        .build()?;
-
-    let settings = settings
-        .try_deserialize::<HashMap<String, String>>()
-        .unwrap();
-
-    println!("CONFIG: {:?}", settings);
-
-    let config_options = Options {
-        sound_path: match settings.get("sound") {
-            Some(sound) => Some(PathBuf::from(config_path.join(sound))),
-            None => None,
-        },
-        threshold: settings
-            .get("threshold")
-            .unwrap_or(&"".to_string())
-            .parse::<i32>()
-            .unwrap_or(100),
-        loop_time: settings
-            .get("interval")
-            .unwrap_or(&"".to_string())
-            .parse::<u64>()
-            .unwrap_or(10),
-        volume: settings
-            .get("volume")
-            .unwrap_or(&"".to_string())
-            .parse::<f32>()
-            .unwrap_or(1.0),
-    };
-
     let mut stdout = stdout().into_raw_mode().unwrap();
 
-    let args: Vec<String> = env::args().collect();
-
-    let options: Options = match args.len() {
-        1 => config_options,
-        2 => Options {
-            loop_time: args[1].parse::<u64>().unwrap(),
-            sound_path: config_options.sound_path,
-            threshold: config_options.threshold,
-            volume: config_options.volume,
-        },
-        _ => Options {
-            loop_time: args[1].parse::<u64>().unwrap(),
-            sound_path: config_options.sound_path,
-            threshold: args[2].parse::<i32>().unwrap(),
-            volume: config_options.volume,
-        },
-    };
+    let options = options::get_options();
 
     splash_screen(&options);
 
@@ -158,14 +107,6 @@ async fn main() -> Result<(), Box<dyn Error>> {
     listen_for_keypress.await.unwrap();
 
     Ok(())
-}
-
-fn get_config_path() -> PathBuf {
-    let mut config_path = PathBuf::new();
-    config_path.push(env::var("HOME").unwrap());
-    config_path.push(".config");
-    config_path.push("diffding");
-    config_path
 }
 
 fn play_sound(sound_path: &Option<PathBuf>) {
