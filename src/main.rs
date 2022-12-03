@@ -31,6 +31,12 @@ pub struct Options {
     volume: f32,
 }
 
+pub struct LoopState {
+    pub changes: Changes,
+    pub is_snoozed: bool,
+    pub snooze_time: Option<chrono::DateTime<chrono::Local>>,
+}
+
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
     let mut config_path = PathBuf::new();
@@ -290,60 +296,3 @@ fn count_changes() -> Result<Changes, Box<(dyn Error + 'static)>> {
         }),
     }
 }
-
-// test
-// test
-// test
-// test
-// test
-// test
-// test
-// test
-// test
-// test
-// test
-// test
-// test
-// test
-// test
-// test
-// test
-// test
-// test
-// test
-// test
-// test
-// test
-// test
-// test
-// test
-// test
-// test
-// test
-// test
-// test
-// test
-// test
-// test
-// test
-// test
-// test
-// test
-// test
-// test
-// test
-// test
-// test
-// test
-// test
-// test
-// test
-// test
-// test
-// test
-// test
-// test
-// test
-// test
-// test
-// test
