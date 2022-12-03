@@ -196,59 +196,79 @@ async fn alert_loop(
 
     let total = changes.total;
 
+    /** TODO: check commit ID instead */
     if total == 0 && last_count > &0 {
-        println!(
-            "\n\n\r{}-----{}🎉 COMMITTED 🎉{}-----{}\n\n\r",
-            color::Fg(color::White),
-            color::Fg(color::Blue),
-            color::Fg(color::White),
-            color::Fg(color::Reset)
-        );
+        celebrate_commit();
     }
 
     let date = Local::now();
     print!("{}{}", cursor::Up(7), clear::CurrentLine);
-    print!("{} -- ", date.format("%H:%M:%S"));
-    draw_graph(changes, threshold);
-    println!("\r");
+    print_status_display(options);
     if total > threshold {
-        println!(
-            "\n\r{yellow}!!!{lightRed} TIME TO COMMIT {yellow}!!!{reset}\n\r",
-            lightRed = color::Fg(color::LightRed),
-            yellow = color::Fg(color::LightYellow),
-            reset = color::Fg(color::Reset)
-        );
-        println!(
-            // spacer to hold space for the snooze message
-            "\r",
-            // "{white}Press space to snooze (coming soon){reset}\r",
-            // white = color::Fg(color::White),
-            // reset = color::Fg(color::Reset)
-        );
+        on_threshold_exceeded();
     } else {
-        println!(
-            "\n\r{white}Watching for changes...{reset}\n\r",
-            white = color::Fg(color::White),
-            reset = color::Fg(color::Reset)
-        );
-        println!(
-            "{green}👍🏻 Keep up the good work!{reset}\r",
-            green = color::Fg(color::Green),
-            reset = color::Fg(color::Reset)
-        );
+        on_below_threshold();
     }
 
+    print_key_reminders();
+    if { total > threshold } {
+        play_sound(sound_path);
+    }
+
+    Ok(total)
+}
+
+fn print_key_reminders() {
     println!(
         "\n\r{lightWhite}Press {red}Q{lightWhite} to quit{reset}\r",
         red = color::Fg(color::LightCyan),
         reset = color::Fg(color::Reset),
         lightWhite = color::Fg(color::LightWhite)
     );
-    if { total > threshold } {
-        play_sound(sound_path);
-    }
+}
 
-    Ok(total)
+fn celebrate_commit() {
+    println!(
+        "\n\n\r{}-----{}🎉 COMMITTED 🎉{}-----{}\n\n\r",
+        color::Fg(color::White),
+        color::Fg(color::Blue),
+        color::Fg(color::White),
+        color::Fg(color::Reset)
+    );
+}
+
+fn print_status_display(options: &Options) {
+    let date = Local::now();
+    print!("{} -- ", date.format("%H:%M:%S"));
+    draw_graph(changes, options.threshold);
+    println!("\r");
+}
+
+fn on_below_threshold() {
+    println!(
+        "\n\r{white}Watching for changes...{reset}\n\r",
+        white = color::Fg(color::White),
+        reset = color::Fg(color::Reset)
+    );
+    println!(
+        "{green}👍🏻 Keep up the good work!{reset}\r",
+        green = color::Fg(color::Green),
+        reset = color::Fg(color::Reset)
+    );
+}
+
+fn on_threshold_exceeded() {
+    println!(
+        "\n\r{yellow}!!!{lightRed} TIME TO COMMIT {yellow}!!!{reset}\n\r",
+        lightRed = color::Fg(color::LightRed),
+        yellow = color::Fg(color::LightYellow),
+        reset = color::Fg(color::Reset)
+    );
+    println!(
+        "{white}Press space to snooze for {lightCyan}5 {white}minutes. {reset}\r",
+        white = color::Fg(color::White),
+        reset = color::Fg(color::Reset)
+    );
 }
 
 pub struct Changes {
