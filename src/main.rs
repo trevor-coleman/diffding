@@ -2,9 +2,7 @@ mod graph;
 mod messages;
 mod splash;
 
-use crate::graph::draw_graph;
 use crate::splash::splash_screen;
-use chrono::Local;
 use color::{Fg, LightYellow, Reset};
 use config::{Config, File};
 use regex::Regex;
@@ -212,7 +210,7 @@ async fn alert_loop(
     }
 
     print!("{}{}", cursor::Up(7), clear::CurrentLine);
-    print_status_display(options, last_state);
+    graph::print_status_display(options, last_state);
     if total > options.threshold {
         on_threshold_exceeded();
     } else {
@@ -229,13 +227,6 @@ async fn alert_loop(
 
 fn print_key_reminders() {
     messages::press_q_to_quit();
-}
-
-fn print_status_display(options: &Options, loop_state: &LoopState) {
-    let date = Local::now();
-    print!("{} -- ", date.format("%H:%M:%S"));
-    draw_graph(&loop_state.changes, &options.threshold);
-    println!("\r");
 }
 
 fn on_below_threshold() {

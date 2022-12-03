@@ -1,4 +1,5 @@
-use crate::Changes;
+use crate::{Changes, LoopState, Options};
+use chrono::Local;
 use termion::color;
 
 pub fn draw_graph(changes: &Changes, threshold: &i32) {
@@ -37,4 +38,11 @@ pub fn draw_graph(changes: &Changes, threshold: &i32) {
         threshold = threshold,
         reset = color::Fg(color::Reset)
     );
+}
+
+pub fn print_status_display(options: &Options, loop_state: &LoopState) {
+    let date = Local::now();
+    print!("{} -- ", date.format("%H:%M:%S"));
+    draw_graph(&loop_state.changes, &options.threshold);
+    println!("\r");
 }
