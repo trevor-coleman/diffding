@@ -1,10 +1,11 @@
 mod graph;
+mod messages;
 mod splash;
 
 use crate::graph::draw_graph;
 use crate::splash::splash_screen;
 use chrono::Local;
-use color::{Fg, Green, LightCyan, LightRed, LightYellow, Reset, White};
+use color::{Fg, LightYellow, Reset};
 use config::{Config, File};
 use regex::Regex;
 use serde_derive::Deserialize;
@@ -205,7 +206,7 @@ async fn alert_loop(
 
     /** TODO: check commit ID instead */
     if total == 0 && *last_total > 0 {
-        celebrate_commit();
+        messages::celebrate_commit();
     }
 
     print!("{}{}", cursor::Up(7), clear::CurrentLine);
@@ -225,22 +226,7 @@ async fn alert_loop(
 }
 
 fn print_key_reminders() {
-    println!(
-        "\n\r{lightWhite}Press {red}Q{lightWhite} to quit{reset}\r",
-        red = Fg(LightCyan),
-        reset = Fg(Reset),
-        lightWhite = Fg(color::LightWhite)
-    );
-}
-
-fn celebrate_commit() {
-    println!(
-        "\n\n\r{}-----{}🎉 COMMITTED 🎉{}-----{}\n\n\r",
-        Fg(White),
-        Fg(color::Blue),
-        Fg(White),
-        Fg(Reset)
-    );
+    messages::press_q_to_quit();
 }
 
 fn print_status_display(options: &Options, loop_state: &LoopState) {
@@ -251,31 +237,13 @@ fn print_status_display(options: &Options, loop_state: &LoopState) {
 }
 
 fn on_below_threshold() {
-    println!(
-        "\n\r{white}Watching for changes...{reset}\n\r",
-        white = Fg(White),
-        reset = Fg(Reset)
-    );
-    println!(
-        "{green}👍🏻 Keep up the good work!{reset}\r",
-        green = Fg(Green),
-        reset = Fg(Reset)
-    );
+    messages::watching_for_changes();
+    messages::keep_up_the_good_work();
 }
 
 fn on_threshold_exceeded() {
-    println!(
-        "\n\r{yellow}!!!{lightRed} TIME TO COMMIT {yellow}!!!{reset}\n\r",
-        lightRed = Fg(LightRed),
-        yellow = Fg(LightYellow),
-        reset = Fg(Reset)
-    );
-    println!(
-        "{white}Press space to snooze for {lightCyan}5 {white}minutes. {reset}\r",
-        white = Fg(White),
-        reset = Fg(Reset),
-        lightCyan = Fg(LightCyan)
-    );
+    messages::time_to_commit();
+    messages::press_space_to_snooze();
 }
 
 #[derive(Debug, Clone)]
