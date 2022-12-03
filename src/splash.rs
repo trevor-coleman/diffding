@@ -22,7 +22,7 @@ pub fn splash_screen(options: &Options) {
     );
     print_option(
         "Sound",
-        match &options.sound {
+        match &options.sound_path {
             None => "Default",
             Some(path) => &path.to_str().unwrap(),
         },
