@@ -1,5 +1,8 @@
+use chrono::Local;
 use termion::color;
 use termion::color::{Fg, Green, LightCyan, LightRed, LightYellow, Reset, White};
+
+use crate::LoopState;
 
 pub fn celebrate_commit() {
     println!(
@@ -51,5 +54,25 @@ pub fn press_q_to_quit() {
         red = Fg(LightCyan),
         reset = Fg(Reset),
         lightWhite = Fg(color::LightWhite)
+    );
+}
+
+pub fn snoozing(loop_state: &LoopState) {
+    println!(
+        "\n\r{blue}!!!{cyan} Snoozing {blue}!!!{reset}\n\r",
+        blue = Fg(color::Blue),
+        cyan = Fg(color::Cyan),
+        reset = Fg(Reset)
+    );
+    println!(
+        "Just {lightCyan}{snooze_left} {white} more minutes... {reset}\r",
+        lightCyan = Fg(color::LightCyan),
+        white = Fg(color::White),
+        reset = Fg(Reset),
+        snooze_left = loop_state
+            .snooze_time
+            .unwrap()
+            .signed_duration_since(Local::now())
+            .num_minutes()
     );
 }

@@ -5,6 +5,7 @@ use std::process::Command;
 use std::str;
 use std::time::Duration;
 
+use chrono::{DateTime, Local};
 use color::{Fg, LightYellow, Reset};
 use regex::Regex;
 use serde_derive::Deserialize;
@@ -21,31 +22,31 @@ mod messages;
 mod options;
 mod splash;
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone)]
 pub struct Options {
     sound_path: Option<PathBuf>,
     threshold: i32,
     loop_time: u64,
     #[allow(dead_code)]
     volume: f32,
+    snooze_length: i64,
 }
 
 #[derive(Debug, Clone)]
 pub struct LoopState {
     pub changes: Changes,
-    pub is_snoozed: bool,
-    pub snooze_time: Option<chrono::DateTime<chrono::Local>>,
+    pub snooze_time: Option<DateTime<Local>>,
 }
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
     let mut stdout = stdout().into_raw_mode().unwrap();
 
-    let options = options::get_options();
+    let options = options::get_options().unwrap();
 
     splash_screen(&options);
 
-    let forever = spawn(async move {
+    let main_loop = spawn(async move {
         let mut interval = time::interval(Duration::from_secs(options.loop_time));
         let mut loop_state: LoopState = LoopState {
             changes: Changes {
@@ -53,8 +54,6 @@ async fn main() -> Result<(), Box<dyn Error>> {
                 deletions: 0,
                 total: 0,
             },
-
-            is_snoozed: false,
             snooze_time: None,
         };
 
@@ -103,16 +102,16 @@ async fn main() -> Result<(), Box<dyn Error>> {
         }
     });
 
-    forever.await.unwrap();
+    main_loop.await.unwrap();
     listen_for_keypress.await.unwrap();
 
     Ok(())
 }
 
-fn play_sound(sound_path: &Option<PathBuf>) {
+fn play_sound(options: &Options) {
     let sl = Soloud::default().unwrap();
     let mut wav = Wav::default();
-    match sound_path {
+    match &options.sound_path {
         None => {
             load_default_sound(&mut wav);
         }
@@ -146,30 +145,57 @@ async fn alert_loop(
     options: &Options,
     last_state: &mut LoopState,
 ) -> Result<LoopState, Box<dyn Error>> {
-    let state = last_state.clone();
-
-    let total = state.changes.total;
     let last_total = &last_state.changes.total;
+    let changes = count_changes().unwrap();
 
-    /** TODO: check commit ID instead */
-    if total == 0 && *last_total > 0 {
+    // TODO: check commit ID instead
+    if has_committed(&changes.total, last_total) {
         messages::celebrate_commit();
     }
 
+    let mut state = LoopState {
+        changes: changes.clone(),
+        snooze_time: None,
+    };
+
     print!("{}{}", cursor::Up(7), clear::CurrentLine);
-    graph::print_status_display(options, last_state);
-    if total > options.threshold {
-        on_threshold_exceeded();
+    graph::print_status_display(options, &state);
+    if changes.total > options.threshold {
+        on_threshold_exceeded(&last_state);
     } else {
         on_below_threshold();
     }
 
     print_key_reminders();
-    if { total > options.threshold } {
-        play_sound(&options.sound_path);
+    if changes.total > options.threshold {
+        play_sound(options);
     }
 
     Ok(state)
+}
+
+fn get_next_snooze_time(options: &Options, last_state: &&mut LoopState) -> Option<DateTime<Local>> {
+    match should_unsnooze(options, &last_state) {
+        true => None,
+        false => last_state.snooze_time.clone(),
+    }
+}
+
+fn should_unsnooze(options: &Options, last_state: &&mut LoopState) -> bool {
+    let should_unsnooze = match &last_state.snooze_time {
+        Some(snooze_time) => {
+            let now = chrono::Local::now();
+            let diff = snooze_time.clone() - now;
+            diff.num_minutes() > options.snooze_length
+        }
+        None => false,
+    };
+    should_unsnooze
+}
+
+/** TODO: check commit ID instead */
+fn has_committed(total: &i32, last_total: &i32) -> bool {
+    *total == 0 && *last_total > 0
 }
 
 fn print_key_reminders() {
@@ -181,9 +207,13 @@ fn on_below_threshold() {
     messages::keep_up_the_good_work();
 }
 
-fn on_threshold_exceeded() {
-    messages::time_to_commit();
-    messages::press_space_to_snooze();
+fn on_threshold_exceeded(state: &LoopState) {
+    if state.snooze_time == None {
+        messages::time_to_commit();
+        messages::press_space_to_snooze();
+    } else {
+        messages::snoozing(state);
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -216,10 +246,12 @@ fn count_changes() -> Result<Changes, Box<(dyn Error + 'static)>> {
                 .parse::<i32>()
                 .unwrap();
 
+            let total: i32 = &insertions + &deletions;
+
             Ok(Changes {
                 insertions,
                 deletions,
-                total: insertions + deletions,
+                total,
             })
         }
 
