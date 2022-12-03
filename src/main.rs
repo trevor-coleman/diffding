@@ -45,9 +45,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     config_path.push("diffding");
 
     let settings = Config::builder()
-        // Start off by merging in the "default" configuration file
         .add_source(File::from(config_path.join("config.toml")).required(false))
-        // You may also programmatically change settings
         .build()?;
 
     let settings = settings
