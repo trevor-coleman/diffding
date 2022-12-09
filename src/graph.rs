@@ -1,8 +1,9 @@
-use crate::{Changes, LoopState, Options};
 use chrono::Local;
-use termion::color;
 
-pub fn draw_graph(changes: &Changes, threshold: &i32) {
+use crate::git::GitChanges;
+use crate::Options;
+
+pub fn draw_graph(changes: &GitChanges, threshold: &i32) {
     let graph_width = 40;
     let graph_threshold: i32 = (graph_width as f32 * 0.66) as i32;
     for i in 1..=graph_width {
@@ -40,9 +41,9 @@ pub fn draw_graph(changes: &Changes, threshold: &i32) {
     );
 }
 
-pub fn print_status_display(options: &Options, loop_state: &LoopState) {
+pub fn print_status_display(options: &Options, git_changes: &GitChanges) {
     let date = Local::now();
     print!("{} -- ", date.format("%H:%M:%S"));
-    draw_graph(&loop_state.changes, &options.threshold);
+    draw_graph(&git_changes, &options.threshold);
     println!("\r");
 }

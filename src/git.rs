@@ -96,14 +96,11 @@ impl GitState {
 
 pub async fn git_loop(tx: Sender<AppMessage>) {
     loop {
-        loop {
-            let delay = Delay::new(Duration::from_millis(100)).fuse();
-            delay.await;
-            println!("Tick\r");
-            let mut git_state = GitState::new();
-            git_state.update();
+        let delay = Delay::new(Duration::from_millis(100)).fuse();
+        delay.await;
+        let mut git_state = GitState::new();
+        git_state.update();
 
-            tx.send(AppMessage::GitUpdate { git_state }).await.unwrap();
-        }
+        tx.send(AppMessage::GitUpdate { git_state }).await.unwrap();
     }
 }
