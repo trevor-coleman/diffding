@@ -10,9 +10,73 @@ use tokio::sync::mpsc::Sender;
 
 use crate::AppMessage;
 
+#[derive(Debug, Clone, Copy, Default)]
+pub struct GitChanges {
+    pub insertions: i32,
+    pub deletions: i32,
+    pub total: i32,
+}
+
+#[derive(Debug, Clone)]
+pub struct GitState {
+    pub git_changes: GitChanges,
+    pub current_commit: String,
+    pub current_commit_short: String,
+    pub last_commit: Option<String>,
+    pub last_commit_short: Option<String>,
+}
+
+impl Default for GitState {
+    fn default() -> Self {
+        Self {
+            git_changes: count_changes().unwrap_or_default(),
+            current_commit: get_current_commit().unwrap(),
+            current_commit_short: get_current_commit_short().unwrap(),
+            last_commit: None,
+            last_commit_short: None,
+        }
+    }
+}
+
+impl GitState {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    pub fn update(&mut self) {
+        self.last_commit = Some(self.current_commit.clone());
+        self.last_commit_short = Some(self.current_commit_short.clone());
+        self.current_commit_short = get_current_commit_short().unwrap();
+        self.current_commit = get_current_commit().unwrap();
+        self.git_changes = count_changes().unwrap();
+    }
+}
+
+pub async fn git_loop(tx: Sender<AppMessage>) {
+    loop {
+        let delay = Delay::new(Duration::from_millis(100)).fuse();
+        delay.await;
+        let mut git_state = GitState::new();
+        git_state.update();
+
+        tx.send(AppMessage::GitUpdate { git_state }).await.unwrap();
+    }
+}
+
 pub fn get_current_commit() -> Result<String, Box<dyn Error>> {
     let output = Command::new("git")
         .arg("rev-parse")
+        .arg("HEAD")
+        .output()?
+        .stdout;
+    let output = String::from_utf8(output)?;
+    Ok(output.trim().to_string())
+}
+
+pub fn get_current_commit_short() -> Result<String, Box<dyn Error>> {
+    let output = Command::new("git")
+        .arg("rev-parse")
+        .arg("--short")
         .arg("HEAD")
         .output()?
         .stdout;
@@ -57,50 +121,5 @@ pub fn count_changes() -> Result<GitChanges, Box<(dyn Error + 'static)>> {
             deletions: 0,
             total: 0,
         }),
-    }
-}
-
-#[derive(Debug, Clone, Copy)]
-pub struct GitChanges {
-    pub insertions: i32,
-    pub deletions: i32,
-    pub total: i32,
-}
-
-#[derive(Debug, Clone)]
-pub struct GitState {
-    pub git_changes: GitChanges,
-    pub current_commit: String,
-    pub last_commit: Option<String>,
-}
-
-impl GitState {
-    pub fn new() -> Self {
-        Self {
-            git_changes: GitChanges {
-                insertions: 0,
-                deletions: 0,
-                total: 0,
-            },
-            current_commit: String::new(),
-            last_commit: None,
-        }
-    }
-
-    pub fn update(&mut self) {
-        self.last_commit = Some(self.current_commit.clone());
-        self.current_commit = get_current_commit().unwrap();
-        self.git_changes = count_changes().unwrap();
-    }
-}
-
-pub async fn git_loop(tx: Sender<AppMessage>) {
-    loop {
-        let delay = Delay::new(Duration::from_millis(100)).fuse();
-        delay.await;
-        let mut git_state = GitState::new();
-        git_state.update();
-
-        tx.send(AppMessage::GitUpdate { git_state }).await.unwrap();
     }
 }

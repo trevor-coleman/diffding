@@ -117,24 +117,40 @@ impl<'a> Widget for ThresholdGauge<'a> {
             // render the filled area (left to end)
             for x in gauge_area.left()..end {
                 let x_pos = x - gauge_area.left();
-                let x_ratio = (f64::from(x_pos) / f64::from(gauge_area.width)) / threshold_ratio;
+                let mut x_ratio =
+                    (f64::from(x_pos) / f64::from(gauge_area.width)) / threshold_ratio;
+
+                let color = if self.value.unwrap_or(0.0) == 0.0 {
+                    Color::Black
+                } else {
+                    get_gauge_color(x_ratio, threshold_ratio, max_ratio)
+                };
+
+                if self.value.unwrap_or(0.0) == 0.0 {
+                    x_ratio = 0.0;
+                }
 
                 // spaces are needed to apply the background styling
                 buf.get_mut(x, y)
                     .set_symbol(" ")
                     .set_fg(self.gauge_style.bg.unwrap_or(Color::Reset))
-                    .set_bg(get_gauge_color(x_ratio, threshold_ratio, max_ratio));
+                    .set_bg(color);
             }
             if self.use_unicode {
-                let end_ratio = f64::from(end - 1) / f64::from(gauge_area.width) / threshold_ratio;
-                buf.get_mut(end - 1, y)
+                let end_ratio = f64::from(end) / f64::from(gauge_area.width) / threshold_ratio;
+                let color = if self.value.unwrap_or(0.0) == 0.0 {
+                    Color::Black
+                } else {
+                    get_gauge_color(end_ratio, threshold_ratio, max_ratio)
+                };
+                buf.get_mut(end, y)
                     .set_fg(self.gauge_style.bg.unwrap_or(Color::Reset))
-                    .set_bg(get_gauge_color(end_ratio, threshold_ratio, max_ratio));
+                    .set_bg(color);
             }
         }
 
         let marker_pos: u16 =
-            (threshold_ratio * f64::from(gauge_area.width)).floor() as u16 + gauge_area.left() + 2;
+            (threshold_ratio * f64::from(gauge_area.width)).floor() as u16 + gauge_area.left();
         for y in gauge_area.top()..gauge_area.bottom() {
             buf.get_mut(marker_pos, y)
                 .set_symbol(" ")
@@ -161,32 +177,80 @@ fn get_unicode_block<'a>(frac: f64) -> &'a str {
     }
 }
 
-fn gradient_in(ratio: f64, threshold: f64, max_ratio: f64) -> u8 {
+fn red_gradient(ratio: f64, threshold_ratio: f64, max_ratio: f64) -> u8 {
+    let floor = 0.2;
+    let ceiling = 0.9;
+    let min = 0.0;
+    let max = 200.0;
+
     let r = ratio.min(max_ratio);
+    let t = threshold_ratio * max_ratio;
 
-    let c = (r / threshold).min(1.0) * 255.0;
-
-    c as u8
-}
-
-fn gradient_out(ratio: f64, threshold: f64, max_ratio: f64) -> u8 {
-    let r = ratio.min(max_ratio);
-    let t = threshold * max_ratio;
-
-    if r < t {
-        return 255;
+    if r < floor {
+        return 0;
+    }
+    if floor <= r && r < t {
+        return (max - interpolate(max, min, ratio, floor, ceiling)) as u8;
+    }
+    if r < ceiling {
+        return max as u8;
     }
 
-    let c = 255.0 - ((r - t) / (max_ratio - t)).min(1.0) * 255.0;
-
-    c.max(0.0).min(255.0) as u8
+    255
 }
 
-fn get_gauge_color<'a>(ratio: f64, threshold_ratio: f64, max_ratio: f64) -> Color {
+fn green_gradient(ratio: f64) -> u8 {
+    let floor = 0.1;
+    let max = 255.0;
+    let min = 100.0;
+
+    if ratio < floor {
+        return max as u8;
+    }
+
+    if ratio < 1_f64 {
+        return interpolate(max, min, ratio, floor, 1.0) as u8;
+    }
+
+    0
+}
+
+fn blue_gradient(ratio: f64, threshold_ratio: f64, max_ratio: f64) -> u8 {
+    let max = 255.0;
+    let min = 0.0;
+
+    let t = threshold_ratio * max_ratio;
+
+    let floor = 1.0 + (2.0 * (max_ratio - t) / 5.0);
+    let ceiling = max_ratio - ((max_ratio - t) / 40.0);
+
+    if ratio < floor {
+        return 0;
+    }
+
+    if ratio < ceiling {
+        return interpolate(min, max, ratio, floor, ceiling) as u8;
+    }
+
+    if ratio > ceiling {
+        return max as u8;
+    }
+
+    0
+}
+
+pub fn get_gauge_color<'a>(ratio: f64, threshold_ratio: f64, max_ratio: f64) -> Color {
     // let r: u8 = 0;
-    let r: u8 = gradient_in(ratio, threshold_ratio, max_ratio);
-    let g: u8 = gradient_out(ratio, threshold_ratio, max_ratio);
-    let b: u8 = 0;
+    let r = red_gradient(ratio, threshold_ratio, max_ratio);
+    // let g: u8 = 0;
+    let g: u8 = green_gradient(ratio);
+    // let b: u8 = 0;
+    let b: u8 = blue_gradient(ratio, threshold_ratio, max_ratio);
 
     Color::Rgb(r, g, b)
+}
+
+fn interpolate(a: f64, b: f64, value: f64, min: f64, max: f64) -> f64 {
+    let t = (value - min) / (max - min);
+    a + (b - a) * t
 }

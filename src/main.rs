@@ -3,7 +3,7 @@
 //! cargo run --features="event-stream" --example event-stream-tokio
 
 use std::path::PathBuf;
-use std::{io::stdout, time::Duration};
+use std::time::Duration;
 
 use crossterm::{
     cursor::position,
@@ -20,6 +20,7 @@ use crate::git::{git_loop, GitState};
 
 mod git;
 mod options;
+mod summary;
 mod threshold_gauge;
 mod ui;
 
@@ -78,8 +79,6 @@ async fn main() -> Result<()> {
     let (tx_app, mut rx_app) = tokio::sync::mpsc::channel::<AppMessage>(32);
     let (tx_ui, mut rx_ui) = tokio::sync::mpsc::channel::<UiMessage>(32);
 
-    let stdout = stdout();
-
     let tx_manager = tx_ui.clone();
     let manager = tokio::spawn(async move {
         while let Some(cmd) = rx_app.recv().await {
@@ -90,7 +89,18 @@ async fn main() -> Result<()> {
                 }
                 AppMessage::GitUpdate { git_state } => {
                     tx_manager
-                        .send(UiMessage::GitUpdate { git_state })
+                        .send(UiMessage::GitUpdate {
+                            // git_state: GitState {
+                            //     git_changes: GitChanges {
+                            //         insertions: git_state.git_changes.insertions,
+                            //         deletions: git_state.git_changes.deletions,
+                            //         total: 500,
+                            //     },
+                            //     current_commit: git_state.current_commit,
+                            //     last_commit: git_state.last_commit,
+                            // },
+                            git_state,
+                        })
                         .await
                         .unwrap();
                 }
