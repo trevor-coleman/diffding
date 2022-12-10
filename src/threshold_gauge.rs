@@ -50,19 +50,6 @@ impl<'a> ThresholdGauge<'a> {
         self
     }
 
-    pub fn label<T>(mut self, label: T) -> ThresholdGauge<'a>
-    where
-        T: Into<Span<'a>>,
-    {
-        self.label = label.into();
-        self
-    }
-
-    pub fn style(mut self, style: Style) -> ThresholdGauge<'a> {
-        self.style = style;
-        self
-    }
-
     pub fn gauge_style(mut self, style: Style) -> ThresholdGauge<'a> {
         self.gauge_style = style;
         self
@@ -117,8 +104,7 @@ impl<'a> Widget for ThresholdGauge<'a> {
             // render the filled area (left to end)
             for x in gauge_area.left()..end {
                 let x_pos = x - gauge_area.left();
-                let mut x_ratio =
-                    (f64::from(x_pos) / f64::from(gauge_area.width)) / threshold_ratio;
+                let x_ratio = (f64::from(x_pos) / f64::from(gauge_area.width)) / threshold_ratio;
 
                 let color = if self.value.unwrap_or(0.0) == 0.0 {
                     Color::Black
@@ -126,9 +112,9 @@ impl<'a> Widget for ThresholdGauge<'a> {
                     get_gauge_color(x_ratio, threshold_ratio, max_ratio)
                 };
 
-                if self.value.unwrap_or(0.0) == 0.0 {
-                    x_ratio = 0.0;
-                }
+                // if self.value.unwrap_or(0.0) == 0.0 {
+                //     x_ratio = 0.0;
+                // }
 
                 // spaces are needed to apply the background styling
                 buf.get_mut(x, y)
@@ -163,6 +149,7 @@ impl<'a> Widget for ThresholdGauge<'a> {
     }
 }
 
+#[allow(dead_code)]
 fn get_unicode_block<'a>(frac: f64) -> &'a str {
     match (frac * 8.0).round() as u16 {
         1 => symbols::block::ONE_EIGHTH,

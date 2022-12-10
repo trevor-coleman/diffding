@@ -1,5 +1,5 @@
 use std::io;
-use std::io::{BufRead, Stdout};
+use std::io::Stdout;
 
 use cfonts;
 use crossterm::{
@@ -22,7 +22,7 @@ use crate::{GitState, UiMessage};
 pub async fn ui_loop<'ui>(mut rx: tokio::sync::mpsc::Receiver<UiMessage>) {
     enable_raw_mode().unwrap();
     let mut stdout = io::stdout();
-    execute!(stdout, EnterAlternateScreen);
+    execute!(stdout, EnterAlternateScreen).unwrap();
     let backend = CrosstermBackend::new(stdout);
     let mut terminal = Terminal::new(backend).unwrap();
 
@@ -44,55 +44,57 @@ pub async fn ui_loop<'ui>(mut rx: tokio::sync::mpsc::Receiver<UiMessage>) {
                 let top_split = Layout::default()
                     .direction(tui::layout::Direction::Vertical)
                     .margin(1)
-                    .constraints([Constraint::Length(3), Constraint::Min(0)].as_ref())
+                    .constraints(
+                        [
+                            Constraint::Length(3),
+                            Constraint::Length(3),
+                            Constraint::Length(2),
+                            Constraint::Min(0),
+                            Constraint::Length(2),
+                        ]
+                        .as_ref(),
+                    )
                     .split(f.size());
+
+                let app_title_area = top_split[0];
+                let bar_area = top_split[1];
+                let data_display_area = top_split[3];
+                let footer_area = top_split[4];
 
                 let is_wide = f.size().width > wide_width;
 
-                let direction = if is_wide {
-                    tui::layout::Direction::Horizontal
-                } else {
-                    tui::layout::Direction::Vertical
-                };
+                let data_display = get_data_display(data_display_area, is_wide);
 
-                let constraints = if is_wide {
-                    [
-                        Constraint::Length(64),
-                        Constraint::Length(5),
-                        Constraint::Length(30),
-                    ]
-                    .as_ref()
-                } else {
-                    [
-                        Constraint::Length(5),
-                        Constraint::Length(0),
-                        Constraint::Length(5),
-                    ]
-                    .as_ref()
-                };
+                draw_app_title(f, app_title_area);
 
-                let bottom_split = Layout::default()
-                    .direction(direction)
-                    .margin(1)
-                    .constraints(constraints)
-                    .split(top_split[1]);
+                draw_bar(threshold, max_value, total, title, f, bar_area);
 
-                let bar_graph = ThresholdGauge::default()
-                    .block(Block::default().borders(Borders::NONE).title(title))
-                    .gauge_style(
-                        Style::default()
-                            .bg(Color::Black)
-                            .add_modifier(Modifier::ITALIC),
-                    )
-                    .value_and_max_value(total as f64, max_value)
-                    .threshold(threshold)
-                    .use_unicode(true);
+                crate::summary::summary(f, data_display[2], &git_state_draw);
 
-                f.render_widget(bar_graph, top_split[0]);
+                big_text(f, data_display[0], &git_state_draw);
 
-                crate::summary::summary(f, bottom_split[2], &git_state_draw);
+                let mut quit_command =
+                    command_prompt("Q".to_string(), "quit".to_string(), Color::LightYellow);
+                let mut snooze_command = command_prompt(
+                    "<space>".to_string(),
+                    "snooze".to_string(),
+                    Color::LightCyan,
+                );
 
-                big_text(f, bottom_split[0], &git_state_draw);
+                let mut spacer = vec![Span::styled(" / ", Style::default().fg(Color::White))];
+
+                let commands = &mut Vec::<Span>::new();
+                commands.append(quit_command.as_mut());
+                commands.append(spacer.as_mut());
+                commands.append(snooze_command.as_mut());
+                let commands = Spans::from(commands.clone());
+
+                let footer = Paragraph::new(commands)
+                    .block(Block::default().borders(Borders::TOP))
+                    .alignment(tui::layout::Alignment::Left)
+                    .style(Style::default().fg(Color::White));
+
+                f.render_widget(footer, footer_area);
 
                 // debug_info(f, is_wide);
             })
@@ -100,6 +102,73 @@ pub async fn ui_loop<'ui>(mut rx: tokio::sync::mpsc::Receiver<UiMessage>) {
     }
 }
 
+fn draw_bar(
+    threshold: f64,
+    max_value: f64,
+    total: i32,
+    title: Spans,
+    f: &mut Frame<CrosstermBackend<Stdout>>,
+    bar_area: Rect,
+) {
+    let bar_graph = ThresholdGauge::default()
+        .block(Block::default().borders(Borders::NONE).title(title))
+        .gauge_style(
+            Style::default()
+                .bg(Color::Black)
+                .add_modifier(Modifier::ITALIC),
+        )
+        .value_and_max_value(total as f64, max_value)
+        .threshold(threshold)
+        .use_unicode(true);
+
+    f.render_widget(bar_graph, bar_area);
+}
+
+fn draw_app_title(f: &mut Frame<CrosstermBackend<Stdout>>, area: Rect) {
+    let app_title = Paragraph::new("DiffDing - Commit Reminder")
+        .style(
+            Style::default()
+                .fg(Color::Cyan)
+                .add_modifier(Modifier::BOLD),
+        )
+        .block(Block::default().borders(Borders::NONE))
+        .wrap(Wrap { trim: true });
+
+    f.render_widget(app_title, area);
+}
+
+fn get_data_display(area: Rect, is_wide: bool) -> Vec<Rect> {
+    let direction = if is_wide {
+        tui::layout::Direction::Horizontal
+    } else {
+        tui::layout::Direction::Vertical
+    };
+
+    let constraints = if is_wide {
+        [
+            Constraint::Length(64),
+            Constraint::Length(5),
+            Constraint::Length(30),
+        ]
+        .as_ref()
+    } else {
+        [
+            Constraint::Length(5),
+            Constraint::Length(2),
+            Constraint::Length(5),
+        ]
+        .as_ref()
+    };
+
+    let bottom_split = Layout::default()
+        .direction(direction)
+        .margin(1)
+        .constraints(constraints)
+        .split(area);
+    bottom_split
+}
+
+#[allow(dead_code)]
 fn debug_info(f: &mut Frame<CrosstermBackend<Stdout>>, is_wide: bool) {
     let screen_dimension = Span::styled(
         format!(
@@ -174,133 +243,12 @@ fn git_summary<'ui>(git_state: GitState) -> Spans<'ui> {
     title
 }
 
-// test
-// test
-// test
-// test
-// test
-// test
-// test
-// test
-// test
-// test
-// test
-// test
-// test
-// test
-// test
-// test
-// test
-// test
-// test
-// test
-// testjfksdjflskkldfjsdkljfsljkl
-// testjfksdjflskkldfjsdkljfsljkl
-// testjfksdjflskkldfjsdkljfsljkl
-// testjfksdjflskkldfjsdkljfsljkl
-// testjfksdjflskkldfjsdkljfsljkl
-// testjfksdjflskkldfjsdkljfsljkl
-// testjfksdjflskkldfjsdkljfsljkl
-// testjfksdjflskkldfjsdkljfsljkl
-// testjfksdjflskkldfjsdkljfsljkl
-// testjfksdjflskkldfjsdkljfsljkl
-// testjfksdjflskkldfjsdkljfsljkl
-// testjfksdjflskkldfjsdkljfsljkl
-// testjfksdjflskkldfjsdkljfsljkl
-// testjfksdjflskkldfjsdkljfsljkl
-// testjfksdjflskkldfjsdkljfsljkl
-// testjfksdjflskkldfjsdkljfsljkl
-// testjfksdjflskkldfjsdkljfsljkl
-// testjfksdjflskkldfjsdkljfsljkl
-// testjfksdjflskkldfjsdkljfsljkl
-// testjfksdjflskkldfjsdkljfsljkl
-// testjfksdjflskkldfjsdkljfsljkl
-// testjfksdjflskkldfjsdkljfsljkl
-// testjfksdjflskkldfjsdkljfsljkl
-// testjfksdjflskkldfjsdkljfsljkl
-// testjfksdjflskkldfjsdkljfsljkl
-// testjfksdjflskkldfjsdkljfsljkl
-// testjfksdjflskkldfjsdkljfsljkl
-// testjfksdjflskkldfjsdkljfsljkl
-// testjfksdjflskkldfjsdkljfsljkl
-// testjfksdjflskkldfjsdkljfsljkl
-// testjfksdjflskkldfjsdkljfsljkl
-// testjfksdjflskkldfjsdkljfsljkl
-// testjfksdjflskkldfjsdkljfsljkl
-// testjfksdjflskkldfjsdkljfsljkl
-// testjfksdjflskkldfjsdkljfsljkl
-// testjfksdjflskkldfjsdkljfsljkl
-// testjfksdjflskkldfjsdkljfsljkl
-// testjfksdjflskkldfjsdkljfsljkl
-// testjfksdjflskkldfjsdkljfsljkl
-// testjfksdjflskkldfjsdkljfsljkl
-// testjfksdjflskkldfjsdkljfsljkl
-// testjfksdjflskkldfjsdkljfsljkl
-// testjfksdjflskkldfjsdkljfsljkl
-// testjfksdjflskkldfjsdkljfsljkl
-// testjfksdjflskkldfjsdkljfsljkl
-// testjfksdjflskkldfjsdkljfsljkl
-// testjfksdjflskkldfjsdkljfsljkl
-// testjfksdjflskkldfjsdkljfsljkl
-// testjfksdjflskkldfjsdkljfsljkl
-// testjfksdjflskkldfjsdkljfsljkl
-// testjfksdjflskkldfjsdkljfsljkl
-// testjfksdjflskkldfjsdkljfsljkl
-// testjfksdjflskkldfjsdkljfsljkl
-// testjfksdjflskkldfjsdkljfsljkl
-// testjfksdjflskkldfjsdkljfsljkl
-// testjfksdjflskkldfjsdkljfsljkl
-// testjfksdjflskkldfjsdkljfsljkl
-// testjfksdjflskkldfjsdkljfsljkl
-// testjfksdjflskkldfjsdkljfsljkl
-// testjfksdjflskkldfjsdkljfsljkl
-// testjfksdjflskkldfjsdkljfsljkl
-// testjfksdjflskkldfjsdkljfsljkl
-// testjfksdjflskkldfjsdkljfsljkl
-// testjfksdjflskkldfjsdkljfsljkl
-// testjfksdjflskkldfjsdkljfsljkl
-// testjfksdjflskkldfjsdkljfsljkl
-// testjfksdjflskkldfjsdkljfsljkl
-// testjfksdjflskkldfjsdkljfsljkl
-// testjfksdjflskkldfjsdkljfsljkl
-// testjfksdjflskkldfjsdkljfsljkl
-// testjfksdjflskkldfjsdkljfsljkl
-// testjfksdjflskkldfjsdkljfsljkl
-// testjfksdjflskkldfjsdkljfsljkl
-// testjfksdjflskkldfjsdkljfsljkl
-// testjfksdjflskkldfjsdkljfsljkl
-// testjfksdjflskkldfjsdkljfsljkl
-// testjfksdjflskkldfjsdkljfsljkl
-// testjfksdjflskkldfjsdkljfsljkl
-// testjfksdjflskkldfjsdkljfsljkl
-// testjfksdjflskkldfjsdkljfsljkl
-// testjfksdjflskkldfjsdkljfsljkl
-// testjfksdjflskkldfjsdkljfsljkl
-// testjfksdjflskkldfjsdkljfsljkl
-// testjfksdjflskkldfjsdkljfsljkl
-// testjfksdjflskkldfjsdkljfsljkl
-// testjfksdjflskkldfjsdkljfsljkl
-// testjfksdjflskkldfjsdkljfsljkl
-// testjfksdjflskkldfjsdkljfsljkl
-// testjfksdjflskkldfjsdkljfsljkl
-// testjfksdjflskkldfjsdkljfsljkl
-// testjfksdjflskkldfjsdkljfsljkl
-// testjfksdjflskkldfjsdkljfsljkl
-// testjfksdjflskkldfjsdkljfsljkl
-// testjfksdjflskkldfjsdkljfsljkl
-// testjfksdjflskkldfjsdkljfsljkl
-// testjfksdjflskkldfjsdkljfsljkl
-// testjfksdjflskkldfjsdkljfsljkl
-// testjfksdjflskkldfjsdkljfsljkl
-// testjfksdjflskkldfjsdkljfsljkl
-// testjfksdjflskkldfjsdkljfsljkl
-// testjfksdjflskkldfjsdkljfsljkl
-// testjfksdjflskkldfjsdkljfsljkl
-// testjfksdjflskkldfjsdkljfsljkl
-// testjfksdjflskkldfjsdkljfsljkl
-// testjfksdjflskkldfjsdkljfsljkl
-// testjfksdjflskkldfjsdkljfsljkl
-// testjfksdjflskkldfjsdkljfsljkl
-// testjfksdjflskkldfjsdkljfsljkl
-// testjfksdjflskkldfjsdkljfsljkl
-// testjfksdjflskkldfjsdkljfsljkl
+fn command_prompt<'a>(key_name: String, action: String, color: Color) -> Vec<Span<'a>> {
+    let prompt = vec![
+        Span::styled("Press ", Style::default().fg(Color::White)),
+        Span::styled(key_name, Style::default().fg(color)),
+        Span::styled(format!(" to {}", action), Style::default().fg(Color::White)),
+    ];
+
+    prompt
+}

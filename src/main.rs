@@ -2,13 +2,18 @@
 //!
 //! cargo run --features="event-stream" --example event-stream-tokio
 
+use std::io::stdout;
 use std::path::PathBuf;
 use std::time::Duration;
 
+use crossterm::terminal::ClearType;
 use crossterm::{
     cursor::position,
     event::{Event, EventStream, KeyCode},
-    terminal::{disable_raw_mode, enable_raw_mode},
+    execute,
+    terminal::{
+        disable_raw_mode, enable_raw_mode, Clear, EnterAlternateScreen, LeaveAlternateScreen,
+    },
     Result,
 };
 use futures::{future::FutureExt, select, StreamExt};
@@ -38,7 +43,7 @@ async fn print_events(tx: Sender<AppMessage>) {
     let mut reader = EventStream::new();
 
     loop {
-        let mut delay = Delay::new(Duration::from_millis(100)).fuse();
+        let _delay = Delay::new(Duration::from_millis(100)).fuse();
         let mut event = reader.next().fuse();
 
         select! {
@@ -51,7 +56,7 @@ async fn print_events(tx: Sender<AppMessage>) {
                                     tx.send(AppMessage::Quit).await.unwrap();
                                 },
                                 KeyCode::Char('c') => {
-                                    if(key_event.modifiers.contains(crossterm::event::KeyModifiers::CONTROL)) {
+                                    if key_event.modifiers.contains(crossterm::event::KeyModifiers::CONTROL) {
                                         tx.send(AppMessage::Quit).await.unwrap();
                                     } else {
                                         let (x, y) = position().unwrap();
@@ -75,9 +80,11 @@ async fn print_events(tx: Sender<AppMessage>) {
 #[tokio::main]
 async fn main() -> Result<()> {
     enable_raw_mode()?;
+    let mut stdout = stdout();
+    execute!(stdout, EnterAlternateScreen)?;
 
     let (tx_app, mut rx_app) = tokio::sync::mpsc::channel::<AppMessage>(32);
-    let (tx_ui, mut rx_ui) = tokio::sync::mpsc::channel::<UiMessage>(32);
+    let (tx_ui, rx_ui) = tokio::sync::mpsc::channel::<UiMessage>(32);
 
     let tx_manager = tx_ui.clone();
     let manager = tokio::spawn(async move {
@@ -85,6 +92,9 @@ async fn main() -> Result<()> {
             match cmd {
                 AppMessage::Quit => {
                     disable_raw_mode().unwrap();
+                    let mut stdout = std::io::stdout();
+                    execute!(stdout, Clear(ClearType::All)).unwrap();
+                    execute!(stdout, LeaveAlternateScreen).unwrap();
                     std::process::exit(0);
                 }
                 AppMessage::GitUpdate { git_state } => {
