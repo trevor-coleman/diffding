@@ -29,6 +29,8 @@ pub async fn ui_loop<'ui>(mut rx: tokio::sync::mpsc::Receiver<UiMessage>) {
     let threshold = 200.0;
     let max_value = threshold * 1.5;
 
+    let wide_width = 100;
+
     while let Some(cmd) = rx.recv().await {
         let UiMessage::GitUpdate { git_state } = cmd;
 
@@ -45,13 +47,37 @@ pub async fn ui_loop<'ui>(mut rx: tokio::sync::mpsc::Receiver<UiMessage>) {
                     .constraints([Constraint::Length(3), Constraint::Min(0)].as_ref())
                     .split(f.size());
 
+                let is_wide = f.size().width > wide_width;
+
+                let direction = if is_wide {
+                    tui::layout::Direction::Horizontal
+                } else {
+                    tui::layout::Direction::Vertical
+                };
+
+                let constraints = if is_wide {
+                    [
+                        Constraint::Length(64),
+                        Constraint::Length(5),
+                        Constraint::Length(30),
+                    ]
+                    .as_ref()
+                } else {
+                    [
+                        Constraint::Length(5),
+                        Constraint::Length(0),
+                        Constraint::Length(5),
+                    ]
+                    .as_ref()
+                };
+
                 let bottom_split = Layout::default()
-                    .direction(tui::layout::Direction::Vertical)
+                    .direction(direction)
                     .margin(1)
-                    .constraints([Constraint::Percentage(50), Constraint::Min(64)].as_ref())
+                    .constraints(constraints)
                     .split(top_split[1]);
 
-                let overflow = ThresholdGauge::default()
+                let bar_graph = ThresholdGauge::default()
                     .block(Block::default().borders(Borders::NONE).title(title))
                     .gauge_style(
                         Style::default()
@@ -62,13 +88,34 @@ pub async fn ui_loop<'ui>(mut rx: tokio::sync::mpsc::Receiver<UiMessage>) {
                     .threshold(threshold)
                     .use_unicode(true);
 
-                f.render_widget(overflow, top_split[0]);
-                crate::summary::summary(f, bottom_split[0], &git_state_draw);
+                f.render_widget(bar_graph, top_split[0]);
 
-                big_text(f, bottom_split[1], &git_state_draw);
+                crate::summary::summary(f, bottom_split[2], &git_state_draw);
+
+                big_text(f, bottom_split[0], &git_state_draw);
+
+                // debug_info(f, is_wide);
             })
             .unwrap();
     }
+}
+
+fn debug_info(f: &mut Frame<CrosstermBackend<Stdout>>, is_wide: bool) {
+    let screen_dimension = Span::styled(
+        format!(
+            "is_wide: {}, Width {:?}\n\r`",
+            is_wide,
+            f.size().width.to_string()
+        ),
+        Style::default().fg(Color::LightMagenta),
+    );
+
+    let len = screen_dimension.content.len() as u16;
+    let paragraph = Paragraph::new(Text::from(screen_dimension))
+        .block(Block::default().borders(Borders::NONE))
+        .alignment(tui::layout::Alignment::Right);
+
+    f.render_widget(paragraph, Rect::new(0, 0, len + 5, 4));
 }
 
 fn big_text(f: &mut Frame<CrosstermBackend<Stdout>>, area: Rect, git_state: &GitState) {
@@ -81,6 +128,7 @@ fn big_text(f: &mut Frame<CrosstermBackend<Stdout>>, area: Rect, git_state: &Git
         text: String::from(message),
         font: cfonts::Fonts::FontBlock,
         line_height: area.height,
+        spaceless: true,
         ..cfonts::Options::default()
     });
     let vec = output.vec;
@@ -125,3 +173,134 @@ fn git_summary<'ui>(git_state: GitState) -> Spans<'ui> {
     ]);
     title
 }
+
+// test
+// test
+// test
+// test
+// test
+// test
+// test
+// test
+// test
+// test
+// test
+// test
+// test
+// test
+// test
+// test
+// test
+// test
+// test
+// test
+// testjfksdjflskkldfjsdkljfsljkl
+// testjfksdjflskkldfjsdkljfsljkl
+// testjfksdjflskkldfjsdkljfsljkl
+// testjfksdjflskkldfjsdkljfsljkl
+// testjfksdjflskkldfjsdkljfsljkl
+// testjfksdjflskkldfjsdkljfsljkl
+// testjfksdjflskkldfjsdkljfsljkl
+// testjfksdjflskkldfjsdkljfsljkl
+// testjfksdjflskkldfjsdkljfsljkl
+// testjfksdjflskkldfjsdkljfsljkl
+// testjfksdjflskkldfjsdkljfsljkl
+// testjfksdjflskkldfjsdkljfsljkl
+// testjfksdjflskkldfjsdkljfsljkl
+// testjfksdjflskkldfjsdkljfsljkl
+// testjfksdjflskkldfjsdkljfsljkl
+// testjfksdjflskkldfjsdkljfsljkl
+// testjfksdjflskkldfjsdkljfsljkl
+// testjfksdjflskkldfjsdkljfsljkl
+// testjfksdjflskkldfjsdkljfsljkl
+// testjfksdjflskkldfjsdkljfsljkl
+// testjfksdjflskkldfjsdkljfsljkl
+// testjfksdjflskkldfjsdkljfsljkl
+// testjfksdjflskkldfjsdkljfsljkl
+// testjfksdjflskkldfjsdkljfsljkl
+// testjfksdjflskkldfjsdkljfsljkl
+// testjfksdjflskkldfjsdkljfsljkl
+// testjfksdjflskkldfjsdkljfsljkl
+// testjfksdjflskkldfjsdkljfsljkl
+// testjfksdjflskkldfjsdkljfsljkl
+// testjfksdjflskkldfjsdkljfsljkl
+// testjfksdjflskkldfjsdkljfsljkl
+// testjfksdjflskkldfjsdkljfsljkl
+// testjfksdjflskkldfjsdkljfsljkl
+// testjfksdjflskkldfjsdkljfsljkl
+// testjfksdjflskkldfjsdkljfsljkl
+// testjfksdjflskkldfjsdkljfsljkl
+// testjfksdjflskkldfjsdkljfsljkl
+// testjfksdjflskkldfjsdkljfsljkl
+// testjfksdjflskkldfjsdkljfsljkl
+// testjfksdjflskkldfjsdkljfsljkl
+// testjfksdjflskkldfjsdkljfsljkl
+// testjfksdjflskkldfjsdkljfsljkl
+// testjfksdjflskkldfjsdkljfsljkl
+// testjfksdjflskkldfjsdkljfsljkl
+// testjfksdjflskkldfjsdkljfsljkl
+// testjfksdjflskkldfjsdkljfsljkl
+// testjfksdjflskkldfjsdkljfsljkl
+// testjfksdjflskkldfjsdkljfsljkl
+// testjfksdjflskkldfjsdkljfsljkl
+// testjfksdjflskkldfjsdkljfsljkl
+// testjfksdjflskkldfjsdkljfsljkl
+// testjfksdjflskkldfjsdkljfsljkl
+// testjfksdjflskkldfjsdkljfsljkl
+// testjfksdjflskkldfjsdkljfsljkl
+// testjfksdjflskkldfjsdkljfsljkl
+// testjfksdjflskkldfjsdkljfsljkl
+// testjfksdjflskkldfjsdkljfsljkl
+// testjfksdjflskkldfjsdkljfsljkl
+// testjfksdjflskkldfjsdkljfsljkl
+// testjfksdjflskkldfjsdkljfsljkl
+// testjfksdjflskkldfjsdkljfsljkl
+// testjfksdjflskkldfjsdkljfsljkl
+// testjfksdjflskkldfjsdkljfsljkl
+// testjfksdjflskkldfjsdkljfsljkl
+// testjfksdjflskkldfjsdkljfsljkl
+// testjfksdjflskkldfjsdkljfsljkl
+// testjfksdjflskkldfjsdkljfsljkl
+// testjfksdjflskkldfjsdkljfsljkl
+// testjfksdjflskkldfjsdkljfsljkl
+// testjfksdjflskkldfjsdkljfsljkl
+// testjfksdjflskkldfjsdkljfsljkl
+// testjfksdjflskkldfjsdkljfsljkl
+// testjfksdjflskkldfjsdkljfsljkl
+// testjfksdjflskkldfjsdkljfsljkl
+// testjfksdjflskkldfjsdkljfsljkl
+// testjfksdjflskkldfjsdkljfsljkl
+// testjfksdjflskkldfjsdkljfsljkl
+// testjfksdjflskkldfjsdkljfsljkl
+// testjfksdjflskkldfjsdkljfsljkl
+// testjfksdjflskkldfjsdkljfsljkl
+// testjfksdjflskkldfjsdkljfsljkl
+// testjfksdjflskkldfjsdkljfsljkl
+// testjfksdjflskkldfjsdkljfsljkl
+// testjfksdjflskkldfjsdkljfsljkl
+// testjfksdjflskkldfjsdkljfsljkl
+// testjfksdjflskkldfjsdkljfsljkl
+// testjfksdjflskkldfjsdkljfsljkl
+// testjfksdjflskkldfjsdkljfsljkl
+// testjfksdjflskkldfjsdkljfsljkl
+// testjfksdjflskkldfjsdkljfsljkl
+// testjfksdjflskkldfjsdkljfsljkl
+// testjfksdjflskkldfjsdkljfsljkl
+// testjfksdjflskkldfjsdkljfsljkl
+// testjfksdjflskkldfjsdkljfsljkl
+// testjfksdjflskkldfjsdkljfsljkl
+// testjfksdjflskkldfjsdkljfsljkl
+// testjfksdjflskkldfjsdkljfsljkl
+// testjfksdjflskkldfjsdkljfsljkl
+// testjfksdjflskkldfjsdkljfsljkl
+// testjfksdjflskkldfjsdkljfsljkl
+// testjfksdjflskkldfjsdkljfsljkl
+// testjfksdjflskkldfjsdkljfsljkl
+// testjfksdjflskkldfjsdkljfsljkl
+// testjfksdjflskkldfjsdkljfsljkl
+// testjfksdjflskkldfjsdkljfsljkl
+// testjfksdjflskkldfjsdkljfsljkl
+// testjfksdjflskkldfjsdkljfsljkl
+// testjfksdjflskkldfjsdkljfsljkl
+// testjfksdjflskkldfjsdkljfsljkl
+// testjfksdjflskkldfjsdkljfsljkl

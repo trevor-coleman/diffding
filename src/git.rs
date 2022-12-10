@@ -24,6 +24,7 @@ pub struct GitState {
     pub current_commit_short: String,
     pub last_commit: Option<String>,
     pub last_commit_short: Option<String>,
+    pub threshold: i32,
 }
 
 impl Default for GitState {
@@ -34,6 +35,7 @@ impl Default for GitState {
             current_commit_short: get_current_commit_short().unwrap(),
             last_commit: None,
             last_commit_short: None,
+            threshold: 100,
         }
     }
 }
@@ -49,6 +51,10 @@ impl GitState {
         self.current_commit_short = get_current_commit_short().unwrap();
         self.current_commit = get_current_commit().unwrap();
         self.git_changes = count_changes().unwrap();
+    }
+
+    pub fn is_above_threshold(&self) -> bool {
+        self.git_changes.total > self.threshold
     }
 }
 
