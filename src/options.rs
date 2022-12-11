@@ -2,12 +2,13 @@ use std::collections::HashMap;
 use std::env;
 use std::error::Error;
 use std::path::PathBuf;
+use std::sync::Arc;
 
 use config::{Config, File};
 
 use crate::Options;
 
-pub fn get_options() -> Result<Options, Box<dyn Error>> {
+pub fn get_options() -> Result<Arc<Options>, Box<dyn Error>> {
     let config_path = get_config_path();
 
     let settings = Config::builder()
@@ -65,7 +66,7 @@ pub fn get_options() -> Result<Options, Box<dyn Error>> {
         },
     };
 
-    Ok(options)
+    Ok(Arc::new(options))
 }
 
 fn get_config_path() -> PathBuf {

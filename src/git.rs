@@ -6,9 +6,7 @@ use std::time::Duration;
 use futures::FutureExt;
 use futures_timer::Delay;
 use regex::Regex;
-use tokio::sync::mpsc::Sender;
-
-use crate::AppMessage;
+use tokio::sync::watch::Sender;
 
 #[derive(Debug, Clone, Copy, Default)]
 pub struct GitChanges {
@@ -58,14 +56,13 @@ impl GitState {
     }
 }
 
-pub async fn git_loop(tx: Sender<AppMessage>) {
+pub async fn git_loop(tx: Sender<GitState>) {
     loop {
-        let delay = Delay::new(Duration::from_millis(100)).fuse();
-        delay.await;
         let mut git_state = GitState::new();
         git_state.update();
 
-        tx.send(AppMessage::GitUpdate { git_state }).await.unwrap();
+        tx.send(git_state).unwrap();
+        Delay::new(Duration::from_millis(5000)).fuse().await;
     }
 }
 

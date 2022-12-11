@@ -1,7 +1,6 @@
 use std::io;
 use std::io::Stdout;
 
-use cfonts;
 use crossterm::{
     execute,
     terminal::{enable_raw_mode, EnterAlternateScreen},
@@ -17,9 +16,9 @@ use tui::{
 };
 
 use crate::threshold_gauge::ThresholdGauge;
-use crate::{GitState, UiMessage};
+use crate::GitState;
 
-pub async fn ui_loop<'ui>(mut rx: tokio::sync::mpsc::Receiver<UiMessage>) {
+pub async fn ui_loop<'ui>(mut rx: tokio::sync::watch::Receiver<GitState>) {
     enable_raw_mode().unwrap();
     let mut stdout = io::stdout();
     execute!(stdout, EnterAlternateScreen).unwrap();
@@ -31,9 +30,8 @@ pub async fn ui_loop<'ui>(mut rx: tokio::sync::mpsc::Receiver<UiMessage>) {
 
     let wide_width = 100;
 
-    while let Some(cmd) = rx.recv().await {
-        let UiMessage::GitUpdate { git_state } = cmd;
-
+    while rx.changed().await.is_ok() {
+        let git_state = rx.borrow().clone();
         let git_state_draw = git_state.clone();
         let total = git_state.git_changes.total;
 
