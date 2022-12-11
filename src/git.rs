@@ -1,12 +1,15 @@
 use std::error::Error;
 use std::process::Command;
 use std::str;
+use std::sync::Arc;
 use std::time::Duration;
 
 use futures::FutureExt;
 use futures_timer::Delay;
 use regex::Regex;
 use tokio::sync::watch::Sender;
+
+use crate::Options;
 
 #[derive(Debug, Clone, Copy, Default)]
 pub struct GitChanges {
@@ -39,8 +42,11 @@ impl Default for GitState {
 }
 
 impl GitState {
-    pub fn new() -> Self {
-        Self::default()
+    pub fn new(threshold: i32) -> Self {
+        Self {
+            threshold,
+            ..Self::default()
+        }
     }
 
     pub fn update(&mut self) {
@@ -56,13 +62,15 @@ impl GitState {
     }
 }
 
-pub async fn git_loop(tx: Sender<GitState>) {
+pub async fn git_loop(tx: Sender<GitState>, options: Arc<Options>) {
+    let threshold = options.threshold;
+    let loop_time = options.loop_time;
     loop {
-        let mut git_state = GitState::new();
+        let mut git_state = GitState::new(threshold);
         git_state.update();
 
         tx.send(git_state).unwrap();
-        Delay::new(Duration::from_millis(5000)).fuse().await;
+        Delay::new(Duration::from_millis(loop_time)).fuse().await;
     }
 }
 

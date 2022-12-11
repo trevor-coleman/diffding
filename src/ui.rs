@@ -1,5 +1,6 @@
 use std::io;
 use std::io::Stdout;
+use std::sync::Arc;
 
 use crossterm::{
     execute,
@@ -16,16 +17,16 @@ use tui::{
 };
 
 use crate::threshold_gauge::ThresholdGauge;
-use crate::GitState;
+use crate::{GitState, Options};
 
-pub async fn ui_loop<'ui>(mut rx: tokio::sync::watch::Receiver<GitState>) {
+pub async fn ui_loop<'ui>(mut rx: tokio::sync::watch::Receiver<GitState>, options: Arc<Options>) {
     enable_raw_mode().unwrap();
     let mut stdout = io::stdout();
     execute!(stdout, EnterAlternateScreen).unwrap();
     let backend = CrosstermBackend::new(stdout);
     let mut terminal = Terminal::new(backend).unwrap();
 
-    let threshold = 200.0;
+    let threshold = f64::from(options.threshold);
     let max_value = threshold * 1.5;
 
     let wide_width = 100;
@@ -67,7 +68,8 @@ pub async fn ui_loop<'ui>(mut rx: tokio::sync::watch::Receiver<GitState>) {
 
                 draw_bar(threshold, max_value, total, title, f, bar_area);
 
-                crate::summary::summary(f, data_display[2], &git_state_draw);
+                let options_summary = options.clone();
+                crate::summary::summary(f, data_display[2], &git_state_draw, options_summary);
 
                 big_text(f, data_display[0], &git_state_draw);
 

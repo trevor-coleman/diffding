@@ -61,6 +61,7 @@ async fn main() -> Result<()> {
 
     let (tx_git, rx_git) = tokio::sync::watch::channel(GitState::default());
 
+    // let opt_manager = options.clone();
     let manager = tokio::spawn(async move {
         while let Some(cmd) = rx_app.recv().await {
             match cmd {
@@ -79,14 +80,17 @@ async fn main() -> Result<()> {
     });
 
     let tx_kb = tx_app.clone();
-    let events_handle = tokio::spawn(events::keyboard_events(tx_kb));
+    let opt_kb = options.clone();
+    let kb_handle = tokio::spawn(events::keyboard_events(tx_kb, opt_kb));
 
-    let git_handle = tokio::spawn(git_loop(tx_git));
+    let opt_git = options.clone();
+    let git_handle = tokio::spawn(git_loop(tx_git, opt_git));
 
     let rx_git_ui = rx_git.clone();
-    let ui_handle = tokio::spawn(ui::ui_loop(rx_git_ui));
+    let opt_ui = options.clone();
+    let ui_handle = tokio::spawn(ui::ui_loop(rx_git_ui, opt_ui));
 
-    events_handle.await.unwrap();
+    kb_handle.await.unwrap();
     git_handle.await.unwrap();
     ui_handle.await.unwrap();
     manager.await.unwrap();
@@ -104,7 +108,7 @@ async fn handle_signals(mut signals: Signals) {
                 println!("SIGHUP");
             }
             SIGTERM | SIGINT | SIGQUIT => {
-                let mut stdout = std::io::stdout();
+                let mut stdout = stdout();
                 execute!(stdout, Clear(ClearType::All)).unwrap();
                 execute!(stdout, LeaveAlternateScreen).unwrap();
                 disable_raw_mode().unwrap();

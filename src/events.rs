@@ -1,3 +1,4 @@
+use std::sync::Arc;
 use std::time::Duration;
 
 use crossterm::event::{Event, EventStream, KeyCode};
@@ -5,9 +6,9 @@ use futures_timer::Delay;
 use tokio::select;
 use tokio::sync::mpsc::Sender;
 
-use crate::{AppMessage, FutureExt, StreamExt};
+use crate::{AppMessage, FutureExt, Options, StreamExt};
 
-pub async fn keyboard_events(tx: Sender<AppMessage>) {
+pub async fn keyboard_events(tx: Sender<AppMessage>, options: Arc<Options>) {
     let mut reader = EventStream::new();
 
     loop {
@@ -23,11 +24,11 @@ pub async fn keyboard_events(tx: Sender<AppMessage>) {
                                 KeyCode::Char('q') => {
                                     tx.send(AppMessage::Quit).await.unwrap();
                                 },
-                                // KeyCode::Char('c') => {
-                                //     if key_event.modifiers.contains(crossterm::event::KeyModifiers::CONTROL) {
-                                //         tx.send(AppMessage::Quit).await.unwrap();
-                                //     }
-                                // }
+                                KeyCode::Char('c') => {
+                                    if key_event.modifiers.contains(crossterm::event::KeyModifiers::CONTROL) {
+                                        tx.send(AppMessage::Quit).await.unwrap();
+                                    }
+                                }
                                 KeyCode::Char(' ') => {
                                     tx.send(AppMessage::Snooze).await.unwrap();
                                 }

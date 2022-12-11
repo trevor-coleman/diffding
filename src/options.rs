@@ -20,10 +20,7 @@ pub fn get_options() -> Result<Arc<Options>, Box<dyn Error>> {
         .unwrap();
 
     let config_options = Options {
-        sound_path: match settings.get("sound") {
-            Some(sound) => Some(PathBuf::from(config_path.join(sound))),
-            None => None,
-        },
+        sound_path: settings.get("sound").map(|sound| config_path.join(sound)),
         threshold: settings
             .get("threshold")
             .unwrap_or(&"".to_string())
@@ -33,7 +30,7 @@ pub fn get_options() -> Result<Arc<Options>, Box<dyn Error>> {
             .get("interval")
             .unwrap_or(&"".to_string())
             .parse::<u64>()
-            .unwrap_or(10),
+            .unwrap_or(5000),
         volume: settings
             .get("volume")
             .unwrap_or(&"".to_string())
