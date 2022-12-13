@@ -6,9 +6,10 @@ use futures_timer::Delay;
 use tokio::select;
 use tokio::sync::mpsc::Sender;
 
-use crate::{AppMessage, FutureExt, Options, StreamExt};
+use crate::manager::ManagerMessage;
+use crate::{FutureExt, Options, StreamExt};
 
-pub async fn keyboard_events(tx: Sender<AppMessage>, options: Arc<Options>) {
+pub async fn keyboard_events(tx: Sender<ManagerMessage>, options: Arc<Options>) {
     let mut reader = EventStream::new();
 
     loop {
@@ -22,15 +23,15 @@ pub async fn keyboard_events(tx: Sender<AppMessage>, options: Arc<Options>) {
                         if let Event::Key(key_event) = event {
                             match key_event.code {
                                 KeyCode::Char('q') => {
-                                    tx.send(AppMessage::Quit).await.unwrap();
+                                    tx.send(ManagerMessage::Quit).await.unwrap();
                                 },
                                 KeyCode::Char('c') => {
                                     if key_event.modifiers.contains(crossterm::event::KeyModifiers::CONTROL) {
-                                        tx.send(AppMessage::Quit).await.unwrap();
+                                        tx.send(ManagerMessage::Quit).await.unwrap();
                                     }
                                 }
                                 KeyCode::Char(' ') => {
-                                    tx.send(AppMessage::Snooze).await.unwrap();
+                                    tx.send(ManagerMessage::Snooze).await.unwrap();
                                 }
                                 _ => {}
                             }

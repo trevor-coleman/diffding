@@ -19,7 +19,12 @@ use tui::{
 use crate::threshold_gauge::ThresholdGauge;
 use crate::{GitState, Options};
 
-pub async fn ui_loop<'ui>(mut rx: tokio::sync::watch::Receiver<GitState>, options: Arc<Options>) {
+#[derive(Debug)]
+pub enum UiMessage {
+    GitUpdate { git_state: GitState },
+}
+
+pub async fn ui_loop<'ui>(mut rx: tokio::sync::mpsc::Receiver<UiMessage>, options: Arc<Options>) {
     enable_raw_mode().unwrap();
     let mut stdout = io::stdout();
     execute!(stdout, EnterAlternateScreen).unwrap();
@@ -31,75 +36,93 @@ pub async fn ui_loop<'ui>(mut rx: tokio::sync::watch::Receiver<GitState>, option
 
     let wide_width = 100;
 
-    while rx.changed().await.is_ok() {
-        let git_state = rx.borrow().clone();
-        let git_state_draw = git_state.clone();
-        let total = git_state.git_changes.total;
+    while let Some(ui_message) = rx.recv().await {
+        use UiMessage::*;
 
-        let title = git_summary::<'ui>(git_state);
+        match ui_message {
+            GitUpdate { git_state } => {
+                let git_state_draw = git_state.clone();
+                let title = git_summary::<'ui>(git_state);
 
-        terminal
-            .draw(|f| {
-                let top_split = Layout::default()
-                    .direction(tui::layout::Direction::Vertical)
-                    .margin(1)
-                    .constraints(
-                        [
-                            Constraint::Length(3),
-                            Constraint::Length(3),
-                            Constraint::Length(2),
-                            Constraint::Min(0),
-                            Constraint::Length(2),
-                        ]
-                        .as_ref(),
-                    )
-                    .split(f.size());
+                terminal
+                    .draw(|f| {
+                        let top_split = Layout::default()
+                            .direction(tui::layout::Direction::Vertical)
+                            .margin(1)
+                            .constraints(
+                                [
+                                    Constraint::Length(3),
+                                    Constraint::Length(3),
+                                    Constraint::Length(2),
+                                    Constraint::Min(0),
+                                    Constraint::Length(1),
+                                ]
+                                .as_ref(),
+                            )
+                            .split(f.size());
 
-                let app_title_area = top_split[0];
-                let bar_area = top_split[1];
-                let data_display_area = top_split[3];
-                let footer_area = top_split[4];
+                        let app_title_area = top_split[0];
+                        let bar_area = top_split[1];
+                        let data_display_area = top_split[3];
+                        let footer_area = top_split[4];
 
-                let is_wide = f.size().width > wide_width;
+                        let is_wide = f.size().width > wide_width;
 
-                let data_display = get_data_display(data_display_area, is_wide);
+                        let data_display = get_data_display(data_display_area, is_wide);
 
-                draw_app_title(f, app_title_area);
+                        draw_app_title(f, app_title_area);
 
-                draw_bar(threshold, max_value, total, title, f, bar_area);
+                        draw_bar(
+                            threshold,
+                            max_value,
+                            git_state_draw.git_changes.total.clone(),
+                            title,
+                            f,
+                            bar_area,
+                        );
 
-                let options_summary = options.clone();
-                crate::summary::summary(f, data_display[2], &git_state_draw, options_summary);
+                        let options_summary = options.clone();
+                        crate::summary::summary(
+                            f,
+                            data_display[2],
+                            &git_state_draw,
+                            options_summary,
+                        );
 
-                big_text(f, data_display[0], &git_state_draw);
+                        big_text(f, data_display[0], &git_state_draw);
 
-                let mut quit_command =
-                    command_prompt("Q".to_string(), "quit".to_string(), Color::LightYellow);
-                let mut snooze_command = command_prompt(
-                    "<space>".to_string(),
-                    "snooze".to_string(),
-                    Color::LightCyan,
-                );
+                        draw_footer(f, footer_area);
 
-                let mut spacer = vec![Span::styled(" / ", Style::default().fg(Color::White))];
-
-                let commands = &mut Vec::<Span>::new();
-                commands.append(quit_command.as_mut());
-                commands.append(spacer.as_mut());
-                commands.append(snooze_command.as_mut());
-                let commands = Spans::from(commands.clone());
-
-                let footer = Paragraph::new(commands)
-                    .block(Block::default().borders(Borders::TOP))
-                    .alignment(tui::layout::Alignment::Left)
-                    .style(Style::default().fg(Color::White));
-
-                f.render_widget(footer, footer_area);
-
-                // debug_info(f, is_wide);
-            })
-            .unwrap();
+                        // debug_info(f, is_wide);
+                    })
+                    .unwrap();
+            }
+        }
     }
+}
+
+fn draw_footer(f: &mut Frame<CrosstermBackend<Stdout>>, footer_area: Rect) {
+    let mut quit_command = command_prompt("Q".to_string(), "quit".to_string(), Color::LightYellow);
+    let mut snooze_command = command_prompt(
+        "<space>".to_string(),
+        "snooze".to_string(),
+        Color::LightCyan,
+    );
+
+    let mut spacer = vec![Span::styled(" / ", Style::default().fg(Color::White))];
+
+    let commands = &mut Vec::<Span>::new();
+    commands.append(quit_command.as_mut());
+    commands.append(spacer.as_mut());
+    commands.append(snooze_command.as_mut());
+    let commands = Spans::from(commands.clone());
+
+    let footer = Paragraph::new(commands)
+        .block(Block::default().borders(Borders::NONE))
+        .alignment(tui::layout::Alignment::Left)
+        .style(Style::default().fg(Color::Black).bg(Color::DarkGray));
+
+    f.render_widget(footer, footer_area);
 }
 
 fn draw_bar(

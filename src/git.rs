@@ -7,15 +7,21 @@ use std::time::Duration;
 use futures::FutureExt;
 use futures_timer::Delay;
 use regex::Regex;
-use tokio::sync::watch::Sender;
+use tokio::sync::mpsc::Sender;
 
-use crate::Options;
+use crate::{ManagerMessage, Options};
 
 #[derive(Debug, Clone, Copy, Default)]
 pub struct GitChanges {
     pub insertions: i32,
     pub deletions: i32,
     pub total: i32,
+}
+
+impl GitChanges {
+    pub fn compare(&self, other: &GitChanges) -> bool {
+        self.insertions == other.insertions && self.deletions == other.deletions
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -60,16 +66,39 @@ impl GitState {
     pub fn is_above_threshold(&self) -> bool {
         self.git_changes.total > self.threshold
     }
+
+    pub fn compare(&self, other: &Self) -> bool {
+        if self.current_commit != other.current_commit {
+            return false;
+        }
+        if self.last_commit != other.last_commit {
+            return false;
+        }
+        if self.git_changes.compare(&other.git_changes) {
+            return false;
+        }
+
+        true
+    }
+
+    pub fn compare_with_prev(&self, prev: Arc<Option<GitState>>) -> bool {
+        match prev.as_ref() {
+            None => false,
+            Some(state) => self.compare(&state),
+        }
+    }
 }
 
-pub async fn git_loop(tx: Sender<GitState>, options: Arc<Options>) {
+pub async fn git_loop(tx: Sender<ManagerMessage>, options: Arc<Options>) {
     let threshold = options.threshold;
     let loop_time = options.loop_time;
     loop {
         let mut git_state = GitState::new(threshold);
         git_state.update();
 
-        tx.send(git_state).unwrap();
+        let message = ManagerMessage::Git { git_state };
+
+        tx.send(message).await.unwrap();
         Delay::new(Duration::from_millis(loop_time)).fuse().await;
     }
 }
