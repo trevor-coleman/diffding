@@ -1,12 +1,13 @@
 use std::io::Stdout;
 use std::sync::Arc;
+use std::time::Duration;
 
 use crossterm::execute;
 use crossterm::terminal::disable_raw_mode;
 use crossterm::terminal::{Clear, ClearType, LeaveAlternateScreen};
 use tokio::sync::mpsc::{Receiver, Sender};
-use tokio::task::JoinHandle;
 
+use crate::bell::BellMessage;
 use crate::{GitState, UiMessage};
 
 #[derive(Debug)]
@@ -14,13 +15,15 @@ pub enum ManagerMessage {
     Quit,
     Snooze,
     Git { git_state: GitState },
+    Bell,
 }
 
-pub fn manager_loop(
+pub async fn manager_loop(
     mut stdout: Stdout,
     mut rx_app: Receiver<ManagerMessage>,
     tx_ui_manager: Sender<UiMessage>,
-) -> JoinHandle<()> {
+    tx_bell_manager: Sender<BellMessage>,
+) {
     let last_git_state: Arc<Option<GitState>> = Arc::new(None);
 
     tokio::spawn(async move {
@@ -44,7 +47,12 @@ pub fn manager_loop(
                             .unwrap();
                     }
                 }
+                ManagerMessage::Bell => {
+                    tx_bell_manager.send(BellMessage::Start).await.unwrap();
+                    tokio::time::sleep(Duration::from_secs(5)).await;
+                    tx_bell_manager.send(BellMessage::Stop).await.unwrap();
+                }
             }
         }
-    })
+    });
 }

@@ -14,7 +14,7 @@ pub async fn keyboard_events(tx: Sender<ManagerMessage>, options: Arc<Options>) 
 
     loop {
         let _delay = Delay::new(Duration::from_millis(100)).fuse();
-        let mut event = reader.next().fuse();
+        let event = reader.next().fuse();
 
         select! {
             maybe_event = event => {
@@ -29,10 +29,13 @@ pub async fn keyboard_events(tx: Sender<ManagerMessage>, options: Arc<Options>) 
                                     if key_event.modifiers.contains(crossterm::event::KeyModifiers::CONTROL) {
                                         tx.send(ManagerMessage::Quit).await.unwrap();
                                     }
-                                }
+                                },
                                 KeyCode::Char(' ') => {
                                     tx.send(ManagerMessage::Snooze).await.unwrap();
-                                }
+                                },
+                                KeyCode::Char('b') => {
+                                    tx.send(ManagerMessage::Bell).await.unwrap();
+                                },
                                 _ => {}
                             }
                         }
