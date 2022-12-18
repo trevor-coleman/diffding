@@ -41,64 +41,77 @@ pub async fn ui_loop<'ui>(mut rx: tokio::sync::mpsc::Receiver<UiMessage>, option
 
         match ui_message {
             GitUpdate { git_state } => {
-                let git_state_draw = git_state.clone();
-                let title = git_summary::<'ui>(git_state);
-
-                terminal
-                    .draw(|f| {
-                        let top_split = Layout::default()
-                            .direction(tui::layout::Direction::Vertical)
-                            .margin(1)
-                            .constraints(
-                                [
-                                    Constraint::Length(3),
-                                    Constraint::Length(3),
-                                    Constraint::Length(2),
-                                    Constraint::Min(0),
-                                    Constraint::Length(1),
-                                ]
-                                .as_ref(),
-                            )
-                            .split(f.size());
-
-                        let app_title_area = top_split[0];
-                        let bar_area = top_split[1];
-                        let data_display_area = top_split[3];
-                        let footer_area = top_split[4];
-
-                        let is_wide = f.size().width > wide_width;
-
-                        let data_display = get_data_display(data_display_area, is_wide);
-
-                        draw_app_title(f, app_title_area);
-
-                        draw_bar(
-                            threshold,
-                            max_value,
-                            git_state_draw.git_changes.total.clone(),
-                            title,
-                            f,
-                            bar_area,
-                        );
-
-                        let options_summary = options.clone();
-                        crate::summary::summary(
-                            f,
-                            data_display[2],
-                            &git_state_draw,
-                            options_summary,
-                        );
-
-                        big_text(f, data_display[0], &git_state_draw);
-
-                        draw_footer(f, footer_area);
-
-                        // debug_info(f, is_wide);
-                    })
-                    .unwrap();
+                draw_ui(
+                    options.clone(),
+                    &mut terminal,
+                    threshold,
+                    max_value,
+                    wide_width,
+                    git_state,
+                );
             }
         }
     }
+}
+
+fn draw_ui(
+    options: Arc<Options>,
+    terminal: &mut Terminal<CrosstermBackend<Stdout>>,
+    threshold: f64,
+    max_value: f64,
+    wide_width: u16,
+    git_state: GitState,
+) {
+    let git_state_draw = git_state.clone();
+    let title = git_summary(git_state);
+
+    terminal
+        .draw(|f| {
+            let top_split = Layout::default()
+                .direction(tui::layout::Direction::Vertical)
+                .margin(1)
+                .constraints(
+                    [
+                        Constraint::Length(3),
+                        Constraint::Length(3),
+                        Constraint::Length(2),
+                        Constraint::Min(0),
+                        Constraint::Length(1),
+                    ]
+                    .as_ref(),
+                )
+                .split(f.size());
+
+            let app_title_area = top_split[0];
+            let bar_area = top_split[1];
+            let data_display_area = top_split[3];
+            let footer_area = top_split[4];
+
+            let is_wide = f.size().width > wide_width;
+
+            let data_display = get_data_display(data_display_area, is_wide);
+
+            draw_app_title(f, app_title_area);
+
+            draw_bar(
+                threshold,
+                max_value,
+                git_state_draw.git_changes.total.clone(),
+                title,
+                f,
+                bar_area,
+            );
+
+            let options_summary = options.clone();
+            crate::summary::summary(f, data_display[2], &git_state_draw, options_summary);
+
+            big_text(f, data_display[0], &git_state_draw);
+
+            draw_footer(f, footer_area);
+
+            // debug_info(f, is_wide);
+        })
+        .unwrap();
 }
 
 fn draw_footer(f: &mut Frame<CrosstermBackend<Stdout>>, footer_area: Rect) {

@@ -16,6 +16,7 @@ pub enum ManagerMessage {
     Snooze,
     Git { git_state: GitState },
     Bell,
+    Redraw,
 }
 
 pub struct AppState {
@@ -51,6 +52,13 @@ pub async fn manager_loop(
     let manager_handle = tokio::spawn(async move {
         while let Some(cmd) = rx_app.recv().await {
             match cmd {
+                ManagerMessage::Redraw => {
+                    let clone = last_git_state.as_ref().clone().unwrap();
+                    tx_ui_manager
+                        .send(UiMessage::GitUpdate { git_state: clone })
+                        .await
+                        .unwrap();
+                }
                 ManagerMessage::Quit => {
                     disable_raw_mode().unwrap();
                     let mut stdout = std::io::stdout();

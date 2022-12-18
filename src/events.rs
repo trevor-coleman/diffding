@@ -20,6 +20,9 @@ pub async fn keyboard_events(tx: Sender<ManagerMessage>, options: Arc<Options>) 
             maybe_event = event => {
                 match maybe_event {
                     Some(Ok(event)) => {
+                        if let Event::Resize(width, height) = event{
+                            tx.send(ManagerMessage::Redraw).await.unwrap();
+                        }
                         if let Event::Key(key_event) = event {
                             match key_event.code {
                                 KeyCode::Char('q') => {

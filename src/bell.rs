@@ -37,7 +37,7 @@ pub async fn bell_loop(mut rx: tokio::sync::mpsc::Receiver<BellMessage>, options
 }
 
 async fn ring_bell(options: Arc<Options>, cancel_token: CancellationToken) {
-    let mut interval = interval(Duration::from_millis(1000));
+    let mut interval = interval(Duration::from_millis(10000));
     ring(&options.sound_path);
     interval.tick().await;
     while !cancel_token.is_cancelled() {

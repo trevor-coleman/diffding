@@ -26,7 +26,7 @@ pub fn get_options() -> Result<Arc<Options>, Box<dyn Error>> {
             .unwrap_or(&"".to_string())
             .parse::<i32>()
             .unwrap_or(100),
-        loop_time: settings
+        git_update_time: settings
             .get("interval")
             .unwrap_or(&"".to_string())
             .parse::<u64>()
@@ -48,14 +48,14 @@ pub fn get_options() -> Result<Arc<Options>, Box<dyn Error>> {
     let options: Options = match args.len() {
         1 => config_options,
         2 => Options {
-            loop_time: args[1].parse::<u64>().unwrap(),
+            git_update_time: args[1].parse::<u64>().unwrap(),
             sound_path: config_options.sound_path,
             threshold: config_options.threshold,
             volume: config_options.volume,
             snooze_length: config_options.snooze_length,
         },
         _ => Options {
-            loop_time: args[1].parse::<u64>().unwrap(),
+            git_update_time: args[1].parse::<u64>().unwrap(),
             sound_path: config_options.sound_path,
             threshold: args[2].parse::<i32>().unwrap(),
             volume: config_options.volume,

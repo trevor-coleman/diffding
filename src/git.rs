@@ -91,7 +91,7 @@ impl GitState {
 
 pub async fn git_loop(tx: Sender<ManagerMessage>, options: Arc<Options>) {
     let threshold = options.threshold;
-    let loop_time = options.loop_time;
+    let loop_time = options.git_update_time;
     loop {
         let mut git_state = GitState::new(threshold);
         git_state.update();

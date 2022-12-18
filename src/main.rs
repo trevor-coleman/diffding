@@ -26,7 +26,7 @@ mod ui;
 pub struct Options {
     sound_path: Option<PathBuf>,
     threshold: i32,
-    loop_time: u64,
+    git_update_time: u64,
     #[allow(dead_code)]
     volume: f32,
     snooze_length: i64,
@@ -40,7 +40,10 @@ async fn main() -> Result<()> {
     let signals = Signals::new([SIGHUP, SIGTERM, SIGINT, SIGQUIT])?;
     let signals_handle = signals.handle();
 
-    let signals_task = tokio::spawn(signals::handle_signals(signals));
+    let (tx_bell, mut rx_bell) = tokio::sync::mpsc::channel::<BellMessage>(32);
+
+    let tx_bell_signals = tx_bell.clone();
+    let signals_task = tokio::spawn(signals::handle_signals(signals, tx_bell_signals));
 
     let options = options::get_options().unwrap();
 

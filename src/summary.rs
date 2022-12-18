@@ -18,7 +18,7 @@ pub fn summary<B: Backend>(
     let insertions = &git_state.git_changes.insertions.to_string();
     let deletions = &git_state.git_changes.deletions.to_string();
     let threshold = &git_state.threshold.to_string();
-    let loop_time = &options.loop_time.to_string();
+    let loop_time = &options.git_update_time.to_string();
     let total = &git_state.git_changes.total.to_string();
     let total_string = &format!("{total} / {threshold}");
     let loop_time_string = &format!("{loop_time}ms");
