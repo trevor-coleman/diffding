@@ -66,9 +66,9 @@ pub async fn manager_loop(
                     execute!(stdout, LeaveAlternateScreen).unwrap();
                     std::process::exit(0);
                 }
-                ManagerMessage::Snooze => {
-                    execute!(stdout, Clear(ClearType::All)).unwrap();
-                }
+                // ManagerMessage::Snooze => {
+                //     // execute!(stdout, Clear(ClearType::All)).unwrap();
+                // }
                 ManagerMessage::Git { git_state } => {
                     if !git_state.compare_with_prev(last_git_state.clone()) {
                         tx_ui_manager
@@ -97,6 +97,7 @@ pub async fn manager_loop(
                     tokio::time::sleep(Duration::from_secs(3)).await;
                     tx_bell_manager.send(BellMessage::Stop).await.unwrap();
                 }
+                _ => {}
             }
         }
     });
