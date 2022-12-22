@@ -44,7 +44,7 @@ pub async fn manager_loop(
     tx_ui_manager: Sender<UiMessage>,
     tx_bell_manager: Sender<BellMessage>,
 ) {
-    let last_git_state: Arc<Option<GitState>> = Arc::new(None);
+    let mut last_git_state: Arc<Option<GitState>> = Arc::new(None);
     let app_state = Arc::new(Mutex::new(AppState {
         ringing: false,
         snoozed: false,
@@ -53,11 +53,14 @@ pub async fn manager_loop(
         while let Some(cmd) = rx_app.recv().await {
             match cmd {
                 ManagerMessage::Redraw => {
-                    let clone = last_git_state.as_ref().clone().unwrap();
-                    tx_ui_manager
-                        .send(UiMessage::GitUpdate { git_state: clone })
-                        .await
-                        .unwrap();
+                    if let Some(git_state) = Arc::clone(&last_git_state).as_ref() {
+                        tx_ui_manager
+                            .send(UiMessage::GitUpdate {
+                                git_state: git_state.clone(),
+                            })
+                            .await
+                            .unwrap();
+                    }
                 }
                 ManagerMessage::Quit => {
                     disable_raw_mode().unwrap();
@@ -90,6 +93,7 @@ pub async fn manager_loop(
                             tx_bell_manager.send(BellMessage::Stop).await.unwrap();
                             app_state.as_ref().lock().unwrap().stop_ringing();
                         }
+                        last_git_state = Arc::new(Some(git_state.clone()));
                     }
                 }
                 ManagerMessage::Bell => {

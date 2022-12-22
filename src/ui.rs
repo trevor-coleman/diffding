@@ -67,6 +67,12 @@ fn draw_ui(
 
     terminal
         .draw(|f| {
+            f.render_widget(
+                Block::default()
+                    .borders(Borders::ALL)
+                    .style(Style::default().bg(Color::Black)),
+                f.size(),
+            );
             let top_split = Layout::default()
                 .direction(tui::layout::Direction::Vertical)
                 .margin(1)
@@ -133,7 +139,7 @@ fn draw_footer(f: &mut Frame<CrosstermBackend<Stdout>>, footer_area: Rect) {
     let footer = Paragraph::new(commands)
         .block(Block::default().borders(Borders::NONE))
         .alignment(tui::layout::Alignment::Left)
-        .style(Style::default().fg(Color::White).bg(Color::Rgb(50, 50, 50)));
+        .style(Style::default().fg(Color::White).bg(Color::Indexed(237)));
 
     f.render_widget(footer, footer_area);
 }
@@ -150,7 +156,7 @@ fn draw_bar(
         .block(Block::default().borders(Borders::NONE).title(title))
         .gauge_style(
             Style::default()
-                .bg(Color::Black)
+                .bg(Color::Indexed(237))
                 .add_modifier(Modifier::ITALIC),
         )
         .value_and_max_value(total as f64, max_value)
@@ -165,6 +171,7 @@ fn draw_app_title(f: &mut Frame<CrosstermBackend<Stdout>>, area: Rect) {
         .style(
             Style::default()
                 .fg(Color::Cyan)
+                .bg(Color::Black)
                 .add_modifier(Modifier::BOLD),
         )
         .block(Block::default().borders(Borders::NONE))
@@ -196,12 +203,11 @@ fn get_data_display(area: Rect, is_wide: bool) -> Vec<Rect> {
         .as_ref()
     };
 
-    let bottom_split = Layout::default()
+    Layout::default()
         .direction(direction)
         .margin(1)
         .constraints(constraints)
-        .split(area);
-    bottom_split
+        .split(area)
 }
 
 #[allow(dead_code)]
@@ -251,7 +257,7 @@ fn big_text(f: &mut Frame<CrosstermBackend<Stdout>>, area: Rect, git_state: &Git
 
     let paragraph = Paragraph::new(text)
         .block(Block::default().borders(Borders::NONE))
-        .style(Style::default().fg(fg).bg(Color::Reset))
+        .style(Style::default().fg(fg).bg(Color::Black))
         .wrap(Wrap { trim: false });
 
     f.render_widget(paragraph, area);
@@ -264,16 +270,16 @@ fn git_summary<'ui>(git_state: GitState) -> Spans<'ui> {
     let title: Spans<'ui> = Spans::from(vec![
         Span::styled(
             format!("{} ", git_state.current_commit_short),
-            Style::default().fg(Color::White),
+            Style::default().fg(Color::White).bg(Color::Black),
         ),
         Span::styled(
             format!("+{}", insertions),
-            Style::default().fg(Color::LightGreen),
+            Style::default().fg(Color::LightGreen).bg(Color::Black),
         ),
-        Span::styled("/", Style::default().fg(Color::White)),
+        Span::styled("/", Style::default().fg(Color::White).bg(Color::Black)),
         Span::styled(
             format!("-{}", deletions),
-            Style::default().fg(Color::LightRed),
+            Style::default().fg(Color::LightRed).bg(Color::Black),
         ),
     ]);
     title

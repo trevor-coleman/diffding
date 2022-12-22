@@ -1,3 +1,5 @@
+use std::env;
+
 use tui::buffer::Buffer;
 use tui::layout::Rect;
 use tui::style::{Color, Style};
@@ -24,7 +26,7 @@ impl<'a> Default for ThresholdGauge<'a> {
             block: None,
             label: Span::raw(""),
             use_unicode: false,
-            style: Style::default(),
+            style: Style::default().bg(Color::Black),
             gauge_style: Style::default(),
             threshold: 100.0,
             max_value: 150.0,
@@ -130,7 +132,7 @@ impl<'a> Widget for ThresholdGauge<'a> {
                     get_gauge_color(end_ratio, threshold_ratio, max_ratio)
                 };
                 buf.get_mut(end, y)
-                    .set_fg(self.gauge_style.bg.unwrap_or(Color::Reset))
+                    .set_fg(self.gauge_style.bg.unwrap_or(Color::Red))
                     .set_bg(color);
             }
         }
@@ -234,7 +236,11 @@ pub fn get_gauge_color<'a>(ratio: f64, threshold_ratio: f64, max_ratio: f64) -> 
     // let b: u8 = 0;
     let b: u8 = blue_gradient(ratio, threshold_ratio, max_ratio);
 
-    Color::Rgb(r, g, b)
+    if env::var("COLORTERM").is_ok() {
+        Color::Rgb(r, g, b)
+    } else {
+        Color::Indexed(rgb2ansi256::rgb_to_ansi256(r, g, b))
+    }
 }
 
 fn interpolate(a: f64, b: f64, value: f64, min: f64, max: f64) -> f64 {
