@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use tui::backend::Backend;
 use tui::layout::{Constraint, Rect};
-use tui::style::{Modifier, Style};
+use tui::style::{Color, Modifier, Style};
 use tui::widgets::{Block, Borders, Cell, Row, Table, TableState};
 use tui::Frame;
 
@@ -42,7 +42,12 @@ pub fn summary<B: Backend>(
         Row::new(cells).height(height as u16).bottom_margin(0)
     });
     let t = Table::new(rows)
-        .block(Block::default().borders(Borders::NONE).title("STATUS"))
+        .block(
+            Block::default()
+                .borders(Borders::NONE)
+                .title("STATUS")
+                .style(Style::default().bg(Color::Black).fg(Color::White)),
+        )
         .highlight_style(selected_style)
         .highlight_symbol(">> ")
         .widths(&[Constraint::Min(20), Constraint::Min(20)]);

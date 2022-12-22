@@ -244,6 +244,7 @@ dependencies = [
  "libc",
  "mio",
  "parking_lot",
+ "serde",
  "signal-hook",
  "signal-hook-mio",
  "winapi",
@@ -314,7 +315,7 @@ dependencies = [
 
 [[package]]
 name = "diffding"
-version = "0.2.0"
+version = "0.2.2"
 dependencies = [
  "cfonts",
  "chrono",
@@ -324,6 +325,7 @@ dependencies = [
  "futures",
  "futures-timer",
  "regex",
+ "rgb2ansi256",
  "serde",
  "serde_derive",
  "signal-hook",
@@ -945,6 +947,12 @@ name = "regex-syntax"
 version = "0.6.28"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "456c603be3e8d448b072f410900c09faf164fbce2d480456f50eea6e25f9c848"
+
+[[package]]
+name = "rgb2ansi256"
+version = "0.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1ebca96b1c05912d531790498048bab5b7b97a756a7bb9df71fa4ef7ef9814e1"
 
 [[package]]
 name = "ron"
