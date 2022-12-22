@@ -115,7 +115,7 @@ fn draw_ui(
 }
 
 fn draw_footer(f: &mut Frame<CrosstermBackend<Stdout>>, footer_area: Rect) {
-    let mut quit_command = command_prompt("Q".to_string(), "quit".to_string(), Color::LightYellow);
+    let mut quit_command = command_prompt("Q".to_string(), "quit".to_string(), Color::LightRed);
     let mut snooze_command = command_prompt(
         "<space>".to_string(),
         "snooze".to_string(),
@@ -126,14 +126,14 @@ fn draw_footer(f: &mut Frame<CrosstermBackend<Stdout>>, footer_area: Rect) {
 
     let commands = &mut Vec::<Span>::new();
     commands.append(quit_command.as_mut());
-    commands.append(spacer.as_mut());
-    commands.append(snooze_command.as_mut());
+    // commands.append(spacer.as_mut());
+    // commands.append(snooze_command.as_mut());
     let commands = Spans::from(commands.clone());
 
     let footer = Paragraph::new(commands)
         .block(Block::default().borders(Borders::NONE))
         .alignment(tui::layout::Alignment::Left)
-        .style(Style::default().fg(Color::Black).bg(Color::DarkGray));
+        .style(Style::default().fg(Color::White).bg(Color::Rgb(50, 50, 50)));
 
     f.render_widget(footer, footer_area);
 }
@@ -281,9 +281,12 @@ fn git_summary<'ui>(git_state: GitState) -> Spans<'ui> {
 
 fn command_prompt<'a>(key_name: String, action: String, color: Color) -> Vec<Span<'a>> {
     let prompt = vec![
-        Span::styled("Press ", Style::default().fg(Color::White)),
+        Span::styled("Press ", Style::default().fg(Color::LightYellow)),
         Span::styled(key_name, Style::default().fg(color)),
-        Span::styled(format!(" to {}", action), Style::default().fg(Color::White)),
+        Span::styled(
+            format!(" to {}", action),
+            Style::default().fg(Color::LightYellow),
+        ),
     ];
 
     prompt
