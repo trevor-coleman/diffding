@@ -20,7 +20,7 @@ pub async fn keyboard_events(tx: Sender<ManagerMessage>, options: Arc<Options>) 
             maybe_event = event => {
                 match maybe_event {
                     Some(Ok(event)) => {
-                        if let Event::Resize(width, height) = event{
+                        if let Event::Resize(_width, _height) = event{
                             tx.send(ManagerMessage::Redraw).await.unwrap();
                         }
                         if let Event::Key(key_event) = event {
@@ -44,7 +44,7 @@ pub async fn keyboard_events(tx: Sender<ManagerMessage>, options: Arc<Options>) 
                         }
 
                     }
-                    Some(Err(e)) => println!("Error: {:?}\r", e),
+                    Some(Err(e)) => println!("Error: {e:?}\r"),
                     None => break,
                 }
             }

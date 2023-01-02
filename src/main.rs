@@ -40,7 +40,7 @@ async fn main() -> Result<()> {
     let signals = Signals::new([SIGHUP, SIGTERM, SIGINT, SIGQUIT])?;
     let signals_handle = signals.handle();
 
-    let (tx_bell, mut rx_bell) = tokio::sync::mpsc::channel::<BellMessage>(32);
+    let (tx_bell, rx_bell) = tokio::sync::mpsc::channel::<BellMessage>(32);
 
     let tx_bell_signals = tx_bell.clone();
     let signals_task = tokio::spawn(signals::handle_signals(signals, tx_bell_signals));
@@ -58,7 +58,6 @@ async fn main() -> Result<()> {
     let tx_ui_manager = tx_ui.clone();
     let tx_bell_manager = tx_bell.clone();
     let manager = tokio::spawn(manager::manager_loop(
-        stdout,
         rx_app,
         tx_ui_manager,
         tx_bell_manager,

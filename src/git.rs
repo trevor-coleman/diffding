@@ -84,7 +84,7 @@ impl GitState {
     pub fn compare_with_prev(&self, prev: Arc<Option<GitState>>) -> bool {
         match prev.as_ref() {
             None => false,
-            Some(state) => self.compare(&state),
+            Some(state) => self.compare(state),
         }
     }
 }
@@ -147,7 +147,7 @@ pub fn count_changes() -> Result<GitChanges, Box<(dyn Error + 'static)>> {
                 .parse::<i32>()
                 .unwrap();
 
-            let total: i32 = &insertions + &deletions;
+            let total: i32 = insertions + deletions;
 
             Ok(GitChanges {
                 insertions,

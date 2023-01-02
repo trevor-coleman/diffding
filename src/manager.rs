@@ -1,4 +1,3 @@
-use std::io::Stdout;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
@@ -39,7 +38,6 @@ impl AppState {
 }
 
 pub async fn manager_loop(
-    mut stdout: Stdout,
     mut rx_app: Receiver<ManagerMessage>,
     tx_ui_manager: Sender<UiMessage>,
     tx_bell_manager: Sender<BellMessage>,
@@ -105,4 +103,5 @@ pub async fn manager_loop(
             }
         }
     });
+    manager_handle.await.unwrap();
 }
