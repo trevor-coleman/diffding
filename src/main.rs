@@ -6,6 +6,7 @@ use futures::{future::FutureExt, StreamExt};
 use serde_derive::Deserialize;
 use signal_hook::consts::signal::*;
 use signal_hook_tokio::Signals;
+use tokio_util::sync::CancellationToken;
 
 use crate::bell::BellMessage;
 use crate::git::{git_loop, GitState};
@@ -49,6 +50,9 @@ async fn main() -> Result<()> {
 
     let mut stdout = stdout();
 
+    let kill_token = CancellationToken::new();
+    let child_kill_token = kill_token.child_token();
+
     enable_raw_mode()?;
 
     let (tx_app, mut rx_app) = tokio::sync::mpsc::channel::<ManagerMessage>(32);
@@ -61,6 +65,7 @@ async fn main() -> Result<()> {
         rx_app,
         tx_ui_manager,
         tx_bell_manager,
+        options.clone(),
     ));
 
     let tx_app_kb = tx_app.clone();
@@ -77,11 +82,12 @@ async fn main() -> Result<()> {
     let opt_bell = options.clone();
     let bell_handle = tokio::spawn(bell::bell_loop(rx_bell, opt_bell));
 
+    manager.await.unwrap();
+    ui_handle.await.unwrap();
     bell_handle.await.unwrap();
     kb_handle.await.unwrap();
     git_handle.await.unwrap();
-    ui_handle.await.unwrap();
-    manager.await.unwrap();
+
     signals_handle.close();
     signals_task.await?;
 

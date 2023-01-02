@@ -1,7 +1,8 @@
 use std::io;
 use std::io::Stdout;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 
+use chrono::{Duration, Local};
 use crossterm::{
     execute,
     terminal::{enable_raw_mode, EnterAlternateScreen},
@@ -16,12 +17,16 @@ use tui::{
     Frame, Terminal,
 };
 
+use crate::manager::AppState;
 use crate::threshold_gauge::ThresholdGauge;
 use crate::{GitState, Options};
 
 #[derive(Debug)]
 pub enum UiMessage {
-    GitUpdate { git_state: GitState },
+    GitUpdate {
+        git_state: GitState,
+        app_state: Arc<Mutex<AppState>>,
+    },
 }
 
 pub async fn ui_loop<'ui>(mut rx: tokio::sync::mpsc::Receiver<UiMessage>, options: Arc<Options>) {
@@ -40,7 +45,10 @@ pub async fn ui_loop<'ui>(mut rx: tokio::sync::mpsc::Receiver<UiMessage>, option
         use UiMessage::*;
 
         match ui_message {
-            GitUpdate { git_state } => {
+            GitUpdate {
+                git_state,
+                app_state,
+            } => {
                 draw_ui(
                     options.clone(),
                     &mut terminal,
@@ -48,6 +56,7 @@ pub async fn ui_loop<'ui>(mut rx: tokio::sync::mpsc::Receiver<UiMessage>, option
                     max_value,
                     wide_width,
                     git_state,
+                    app_state,
                 );
             }
         }
@@ -61,6 +70,7 @@ fn draw_ui(
     max_value: f64,
     wide_width: u16,
     git_state: GitState,
+    app_state: Arc<Mutex<AppState>>,
 ) {
     let git_state_draw = git_state.clone();
     let title = git_summary(git_state);
@@ -113,27 +123,47 @@ fn draw_ui(
 
             big_text(f, data_display[0], &git_state_draw);
 
-            draw_footer(f, footer_area);
+            draw_footer(f, footer_area, app_state.clone(), options.snooze_length);
 
             // debug_info(f, is_wide);
         })
         .unwrap();
 }
 
-fn draw_footer(f: &mut Frame<CrosstermBackend<Stdout>>, footer_area: Rect) {
+fn is_snoozed(app_state: Arc<Mutex<AppState>>) -> bool {
+    app_state.lock().unwrap().snoozed
+}
+
+fn draw_footer(
+    f: &mut Frame<CrosstermBackend<Stdout>>,
+    footer_area: Rect,
+    app_state: Arc<Mutex<AppState>>,
+    snooze_length: i64,
+) {
     let mut quit_command = command_prompt("Q".to_string(), "quit".to_string(), Color::LightRed);
-    let mut snooze_command = command_prompt(
-        "<space>".to_string(),
-        "snooze".to_string(),
-        Color::LightCyan,
-    );
+    let snooze_duration = &Duration::seconds(snooze_length);
+
+    let app_state1 = app_state.clone();
+    let mut snooze_command = match get_time_left(app_state1, snooze_duration) {
+        None => command_prompt(
+            "<space>".to_string(),
+            "snooze".to_string(),
+            Color::LightCyan,
+        ),
+        Some((time_left_text, time_left_units)) => vec![
+            Span::styled("Snoozed: ", Style::default().fg(Color::LightCyan)),
+            Span::styled(time_left_text, Style::default().fg(Color::LightYellow)),
+            Span::styled(time_left_units, Style::default().fg(Color::LightCyan)),
+            Span::styled("remaining", Style::default().fg(Color::LightCyan)),
+        ],
+    };
 
     let mut spacer = vec![Span::styled(" / ", Style::default().fg(Color::White))];
 
     let commands = &mut Vec::<Span>::new();
     commands.append(quit_command.as_mut());
-    // commands.append(spacer.as_mut());
-    // commands.append(snooze_command.as_mut());
+    commands.append(spacer.as_mut());
+    commands.append(snooze_command.as_mut());
     let commands = Spans::from(commands.clone());
 
     let footer = Paragraph::new(commands)
@@ -142,6 +172,24 @@ fn draw_footer(f: &mut Frame<CrosstermBackend<Stdout>>, footer_area: Rect) {
         .style(Style::default().fg(Color::White).bg(Color::Indexed(237)));
 
     f.render_widget(footer, footer_area);
+}
+
+fn get_time_left(
+    app_state: Arc<Mutex<AppState>>,
+    snooze_duration: &Duration,
+) -> Option<(String, String)> {
+    let app_state = app_state.lock().unwrap();
+    if let Some(snoozed_at) = app_state.snoozed_at {
+        let time_left = *snooze_duration - (Local::now() - snoozed_at);
+        return if time_left.num_minutes() == 1 {
+            Some((time_left.num_minutes().to_string(), " minute".to_string()))
+        } else if time_left.num_minutes() > 0 {
+            Some((time_left.num_minutes().to_string(), " minutes".to_string()))
+        } else {
+            Some(("less than 1 minute".to_string(), " ".to_string()))
+        };
+    }
+    return None;
 }
 
 fn draw_bar(

@@ -36,11 +36,12 @@ pub fn get_options() -> Result<Arc<Options>, Box<dyn Error>> {
             .unwrap_or(&"".to_string())
             .parse::<f32>()
             .unwrap_or(1.0),
+        /// Snooze time in minutes, converted to seconds
         snooze_length: settings
             .get("snooze_length")
             .unwrap_or(&"".to_string())
             .parse::<i64>()
-            .unwrap_or(5),
+            .unwrap_or(65),
     };
 
     let args: Vec<String> = env::args().collect();

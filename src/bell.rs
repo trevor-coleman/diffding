@@ -38,7 +38,6 @@ pub async fn bell_loop(mut rx: tokio::sync::mpsc::Receiver<BellMessage>, options
 
 async fn ring_bell(options: Arc<Options>, cancel_token: CancellationToken) {
     let mut interval = interval(Duration::from_millis(10000));
-    ring(&options.sound_path);
     interval.tick().await;
     while !cancel_token.is_cancelled() {
         ring(&options.sound_path);
@@ -67,7 +66,7 @@ pub fn ring(sound_path: &Option<PathBuf>) {
     sl.play(&wav);
 
     while sl.voice_count() > 0 {
-        std::thread::sleep(std::time::Duration::from_millis(100));
+        std::thread::sleep(Duration::from_millis(100));
     }
 }
 
