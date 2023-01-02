@@ -41,7 +41,8 @@ pub fn get_options() -> Result<Arc<Options>, Box<dyn Error>> {
             .get("snooze_length")
             .unwrap_or(&"".to_string())
             .parse::<i64>()
-            .unwrap_or(65),
+            .unwrap_or(5)
+            * 60,
     };
 
     let args: Vec<String> = env::args().collect();
