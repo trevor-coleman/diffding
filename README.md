@@ -21,23 +21,33 @@ You can configure diffding by creating a `~/.config/diffding/config.toml` file i
 Example:
 
 ```toml
+# ~/.config/diffding/config.toml
+
 sound = "14409__acclivity__chimebar-f.wav"  # name of a sound file in `~/.config/diffding`
-interval = 10 # seconds between checks
-threshold = 100 # number of inserts and deletes allowed before a reminder
-volume = 1.0 # volume of the sound
+interval = 10                               # seconds between checks
+threshold = 100                             # number of inserts and deletes allowed before a reminder
+snooze_length = 5                           # number of minutes to snooze for
 ```
 
 ### Custom Sounds
- You can use any sound you like in place of the default bell.
 
- Place the file in `~/.config/diffding` and set the `sound` option in the config file to the name of the file (with no path*);
+You can use any sound you like in place of the default bell
 
-_* support for arbitrary paths coming soon_
+Place the file in `~/.config/diffding` and set the `sound` option in the config file to the name of the file.
+
+#### Supported formats:
+
+- wav
+- mp3
+- ogg
 
 ## Coming soon
 
-[ ] **Snooze** - press space to suppress the dings for a bit
-[ ] **Git integration** - commit directly from diffding
-[ ] **More bells and whistles** -- literally. different built-in sounds.
-[ ] **Volume control** - because sometimes the ding is just too much
-[x] **Config file(s)** - set preferences in `~/.config/diffding/settings.toml`
+- **Git integration** - commit directly from diffding
+- **More bells and whistles** -- literally. different built-in sounds.
+- **Better bell control** - adjust volume, bell frequency, etc.
+
+## Complete
+
+- **Config file(s)** - set preferences in `~/.config/diffding/settings.toml`
+- **Snooze** - press space to suppress the dings for a bit
