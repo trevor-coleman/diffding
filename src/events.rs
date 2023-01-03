@@ -39,6 +39,7 @@ pub async fn keyboard_events(tx: Sender<ManagerMessage>, options: Arc<Options>) 
                                 KeyCode::Char('b') => {
                                     tx.send(ManagerMessage::Bell).await.unwrap();
                                 },
+
                                 _ => {}
                             }
                         }

@@ -151,9 +151,15 @@ fn draw_footer(
             Color::LightCyan,
         ),
         Some((time_left_text, time_left_units)) => vec![
-            Span::styled("Snoozed: ", Style::default().fg(Color::LightCyan)),
-            Span::styled(time_left_text, Style::default().fg(Color::LightYellow)),
-            Span::styled(time_left_units, Style::default().fg(Color::LightCyan)),
+            Span::styled("Snoozed:", Style::default().fg(Color::LightCyan)),
+            Span::styled(
+                format!(" {time_left_text} "),
+                Style::default().fg(Color::LightCyan),
+            ),
+            Span::styled(
+                format!("{time_left_units} "),
+                Style::default().fg(Color::LightCyan),
+            ),
             Span::styled("remaining", Style::default().fg(Color::LightCyan)),
         ],
     };
@@ -182,11 +188,11 @@ fn get_time_left(
     if let Some(snoozed_at) = app_state.snoozed_at {
         let time_left = *snooze_duration - (Local::now() - snoozed_at);
         return if time_left.num_minutes() == 1 {
-            Some((time_left.num_minutes().to_string(), " minute".to_string()))
+            Some((time_left.num_minutes().to_string(), "minute".to_string()))
         } else if time_left.num_minutes() > 0 {
-            Some((time_left.num_minutes().to_string(), " minutes".to_string()))
+            Some((time_left.num_minutes().to_string(), "minutes".to_string()))
         } else {
-            Some(("less than 1 minute".to_string(), " ".to_string()))
+            Some(("less than 1".to_string(), "minute".to_string()))
         };
     }
     return None;

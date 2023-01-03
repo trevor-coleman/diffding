@@ -17,7 +17,6 @@ pub enum ManagerMessage {
     Git { git_state: GitState },
     Bell,
     Redraw,
-    Kill,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -157,10 +156,6 @@ pub async fn manager_loop(
                             .await;
                     }
                 }
-                ManagerMessage::Kill => {
-                    tx_bell_manager.send(BellMessage::Stop).await.unwrap();
-                }
-                _ => {}
             }
         }
     });
