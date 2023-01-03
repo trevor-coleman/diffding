@@ -74,17 +74,15 @@ impl GitState {
         if self.last_commit != other.last_commit {
             return false;
         }
-        if self.git_changes.compare(&other.git_changes) {
-            return false;
-        }
 
-        true
+        self.git_changes.compare(&other.git_changes)
     }
 
     pub fn compare_with_prev(&self, prev: Arc<Option<GitState>>) -> bool {
-        match prev.as_ref() {
-            None => false,
-            Some(state) => self.compare(state),
+        if let Some(prev) = prev.as_ref() {
+            self.compare(prev)
+        } else {
+            false
         }
     }
 }
