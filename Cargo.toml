@@ -1,6 +1,6 @@
 [package]
 name = "diffding"
-version = "0.2.4"
+version = "0.2.5"
 edition = "2021"
 authors = ["Trevor Coleman <trevor@trevorcoleman.design>"]
 repository = "https://github.com/trevor-coleman/diffding"
@@ -22,7 +22,6 @@ futures = "0.3"
 futures-timer = "3.0"
 tui = "0.19.0"
 cfonts = "1.1.0"
-clap = { version = "4.0.29", features = ["derive"] }
 signal-hook = "0.3.1"
 signal-hook-tokio = { version = "0.3.1", features = ["futures-v0_3"] }
 tokio-util = "0.6.9"
